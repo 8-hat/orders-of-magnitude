@@ -1,1 +1,1 @@
-# ::: orders_of_magnitude.example
+# ::: orders_of_magnitude.render_index_html
