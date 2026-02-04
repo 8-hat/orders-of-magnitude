@@ -1,4 +1,4 @@
-"""Update index.html from data/observables.yml."""
+"""Render index.html from data/observables.yml."""
 
 from __future__ import annotations
 
@@ -157,7 +157,7 @@ def _render_rows(observables: list[Observable], indent: str) -> str:
     return "\n".join(rows)
 
 
-def _update_index(index_path: Path, observables: list[Observable]) -> None:
+def _render_index_html(index_path: Path, observables: list[Observable]) -> None:
     html_text = index_path.read_text(encoding="utf-8")
     match = re.search(r"(^\s*)<tbody>\s*$", html_text, flags=re.MULTILINE)
     if match is None:
@@ -185,7 +185,7 @@ def _update_index(index_path: Path, observables: list[Observable]) -> None:
 
 def main() -> None:
     observables = _load_observables(DATA_PATH)
-    _update_index(INDEX_PATH, observables)
+    _render_index_html(INDEX_PATH, observables)
 
 
 if __name__ == "__main__":
