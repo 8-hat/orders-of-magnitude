@@ -95,7 +95,7 @@ jobs:
         run: uv sync
 
       - name: Render index.html
-        run: uv run python src/orders_of_magnitude/render_index_html.py
+        run: uv run python -m orders_of_magnitude.render_index_html
 
       - name: Ensure index.html is consistent
         run: git diff --exit-code index.html

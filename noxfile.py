@@ -59,7 +59,7 @@ def render_index_html(session: nox.Session) -> None:
     """
     session.install("-e.")
     session.run(
-        "python", "src/orders_of_magnitude/render_index_html.py", *session.posargs
+        "python", "-m", "orders_of_magnitude.render_index_html", *session.posargs
     )
 
 
