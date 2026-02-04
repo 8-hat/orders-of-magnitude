@@ -52,6 +52,15 @@ def tests(session: nox.Session) -> None:
     session.run("pytest", *session.posargs)
 
 
+@nox.session(default=False)
+def update_index(session: nox.Session) -> None:
+    """
+    Update index.html from data/observables.yml.
+    """
+    session.install("-e.")
+    session.run("python", "src/orders_of_magnitude/update_index.py", *session.posargs)
+
+
 @nox.session(reuse_venv=True, default=False)
 def docs(session: nox.Session) -> None:
     """

@@ -30,7 +30,9 @@ classifiers = [
   "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = []
+dependencies = [
+  "pyyaml>=6",
+]
 
 [project.urls]
 Homepage = "https://github.com/8-hat/orders-of-magnitude"
