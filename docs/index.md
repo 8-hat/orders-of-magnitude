@@ -16,3 +16,9 @@ You can install this package via running:
 ```bash
 pip install orders_of_magnitude
 ```
+
+## Update index.html
+
+1. Edit `data/observables.yml`.
+2. Run `nox -s render_index_html`.
+3. Commit the updated `index.html`.

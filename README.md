@@ -11,6 +11,12 @@
 
 [![Coverage][coverage-badge]][coverage-link]
 
+## Update index.html
+
+1. Edit `data/observables.yml`.
+2. Run `nox -s render_index_html`.
+3. Commit the updated `index.html`.
+
 <!-- prettier-ignore-start -->
 [actions-badge]:            https://github.com/8-hat/orders-of-magnitude/workflows/CI/badge.svg
 [actions-link]:             https://github.com/8-hat/orders-of-magnitude/actions
