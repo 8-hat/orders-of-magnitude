@@ -17,6 +17,8 @@ INDEX_PATH = ROOT / "index.html"
 
 @dataclass(frozen=True)
 class Observable:
+    """Structured observable used to render the index table."""
+
     name: str
     coefficient: Decimal
     power_of_ten: int
