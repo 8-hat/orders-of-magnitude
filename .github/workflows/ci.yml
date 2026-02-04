@@ -75,3 +75,27 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  render-index:
+    name: Check index.html
+    runs-on: ubuntu-latest
+    needs: [pre-commit]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Install package
+        run: uv sync
+
+      - name: Render index.html
+        run: uv run python src/orders_of_magnitude/render_index_html.py
+
+      - name: Ensure index.html is consistent
+        run: git diff --exit-code index.html
