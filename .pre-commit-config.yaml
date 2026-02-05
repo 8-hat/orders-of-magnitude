@@ -58,6 +58,7 @@ repos:
         additional_dependencies:
           - nox
           - pytest
+          - pint
           - types-PyYAML
 
   - repo: https://github.com/codespell-project/codespell

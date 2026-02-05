@@ -1,25 +1,22 @@
+title: Lengths
 observables:
   - name: Pluto diameter
-    coefficient: 2376
-    power_of_ten: 3
-    unit: m
+    value: 2376
+    unit: km
     field: astronomy
     source: Planetary Fact Sheet
   - name: Moon diameter
-    coefficient: 3475
-    power_of_ten: 3
-    unit: m
+    value: 3475
+    unit: km
     field: astronomy
     source: Planetary Fact Sheet
   - name: Earth diameter
-    coefficient: 12756
-    power_of_ten: 3
-    unit: m
+    value: 12756
+    unit: km
     field: astronomy
     source: Planetary Fact Sheet
   - name: Jupiter diameter
-    coefficient: 142984
-    power_of_ten: 3
-    unit: m
+    value: 142984
+    unit: km
     field: astronomy
     source: Planetary Fact Sheet
