@@ -1,4 +1,4 @@
-"""Render index.html from data/lengths.yml."""
+"""Render index.html from data/lengths.yml and data/times.yml."""
 
 from __future__ import annotations
 
@@ -14,10 +14,10 @@ import yaml
 from pint import errors as pint_errors
 
 ROOT = Path(__file__).resolve().parents[2]
-DATA_PATH = ROOT / "data" / "lengths.yml"
 INDEX_PATH = ROOT / "index.html"
 STYLESHEET_HREF = "index.css"
-TARGET_UNIT = "m"
+TABLES_START = "<!-- DATA_TABLES_START -->"
+TABLES_END = "<!-- DATA_TABLES_END -->"
 UNIT_REGISTRY: pint.UnitRegistry[Any] = pint.UnitRegistry()
 
 
@@ -36,6 +36,20 @@ class Dataset:
 
     title: str
     observables: list[Observable]
+
+
+@dataclass(frozen=True)
+class DatasetConfig:
+    """Configuration for a dataset source and its target unit."""
+
+    path: Path
+    target_unit: str
+
+
+DATASET_CONFIGS: tuple[DatasetConfig, ...] = (
+    DatasetConfig(path=ROOT / "data" / "lengths.yml", target_unit="m"),
+    DatasetConfig(path=ROOT / "data" / "times.yml", target_unit="s"),
+)
 
 
 def _require_field(item: dict[str, object], field: str, index: int) -> object:
@@ -63,7 +77,7 @@ def _parse_str(value: object, field: str, index: int) -> str:
 
 
 def _convert_to_target_unit(
-    value: Decimal, unit: str, index: int
+    value: Decimal, unit: str, target_unit: str, index: int
 ) -> tuple[Decimal, str]:
     try:
         quantity = value * UNIT_REGISTRY(unit)
@@ -72,18 +86,18 @@ def _convert_to_target_unit(
         raise ValueError(msg) from exc
 
     try:
-        converted = quantity.to(TARGET_UNIT)
+        converted = quantity.to(target_unit)
     except pint_errors.DimensionalityError as exc:
         msg = (
             f"Observable {index} field 'unit' ('{unit}') cannot convert to "
-            f"{TARGET_UNIT}."
+            f"{target_unit}."
         )
         raise ValueError(msg) from exc
 
     magnitude = converted.magnitude
     if not isinstance(magnitude, Decimal):
         magnitude = Decimal(str(magnitude))
-    return magnitude, TARGET_UNIT
+    return magnitude, target_unit
 
 
 def _scientific_parts(value: Decimal) -> tuple[str, int]:
@@ -107,7 +121,8 @@ def _scientific_parts(value: Decimal) -> tuple[str, int]:
     return mantissa_str, exponent
 
 
-def _load_dataset(path: Path) -> Dataset:
+def _load_dataset(config: DatasetConfig) -> Dataset:
+    path = config.path
     if not path.exists():
         msg = f"Missing YAML file at {path}."
         raise FileNotFoundError(msg)
@@ -140,7 +155,7 @@ def _load_dataset(path: Path) -> Dataset:
             index,
         )
         unit = _parse_str(_require_field(item, "unit", index), "unit", index)
-        value, unit = _convert_to_target_unit(value, unit, index)
+        value, unit = _convert_to_target_unit(value, unit, config.target_unit, index)
 
         observables.append(
             Observable(
@@ -178,6 +193,34 @@ def _render_rows(observables: list[Observable], indent: str) -> str:
     return "\n".join(rows)
 
 
+def _render_table(dataset: Dataset, indent: str) -> str:
+    title = html.escape(dataset.title)
+    tbody_indent = f"{indent}    "
+    rows_html = _render_rows(dataset.observables, tbody_indent)
+    table_lines = [
+        f'{indent}<section class="dataset">',
+        f"{indent}  <h2>{title}</h2>",
+        f"{indent}  <table>",
+        f"{indent}    <thead>",
+        f"{indent}      <tr>",
+        f"{indent}        <th>Order of magnitude</th>",
+        f"{indent}        <th>Name</th>",
+        f"{indent}        <th>Value</th>",
+        f"{indent}      </tr>",
+        f"{indent}    </thead>",
+        f"{indent}    <tbody>",
+        rows_html,
+        f"{indent}    </tbody>",
+        f"{indent}  </table>",
+        f"{indent}</section>",
+    ]
+    return "\n".join(table_lines)
+
+
+def _render_tables(datasets: list[Dataset], indent: str) -> str:
+    return "\n\n".join(_render_table(dataset, indent) for dataset in datasets)
+
+
 def _ensure_stylesheet_link(html_text: str) -> str:
     link_pattern = (
         r"<link\b"
@@ -204,48 +247,33 @@ def _ensure_stylesheet_link(html_text: str) -> str:
     return html_text[: head_close.start()] + insertion + html_text[head_close.start() :]
 
 
-def _ensure_title(html_text: str, title: str) -> str:
-    match = re.search(r"(<h1>)(.*?)(</h1>)", html_text, flags=re.DOTALL)
-    if match is None:
-        msg = "Could not find <h1> tag in index.html."
-        raise ValueError(msg)
-
-    escaped_title = html.escape(title)
-    replacement = f"{match.group(1)}{escaped_title}{match.group(3)}"
-    return html_text[: match.start()] + replacement + html_text[match.end() :]
-
-
-def _render_index_html(index_path: Path, dataset: Dataset) -> None:
-    html_text = index_path.read_text(encoding="utf-8")
-    html_text = _ensure_stylesheet_link(html_text)
-    html_text = _ensure_title(html_text, dataset.title)
-    match = re.search(r"(^\s*)<tbody>\s*$", html_text, flags=re.MULTILINE)
-    if match is None:
-        msg = "Could not find <tbody> tag in index.html."
-        raise ValueError(msg)
-
-    indent = match.group(1)
-    rows_html = _render_rows(dataset.observables, indent)
-
+def _replace_tables(html_text: str, datasets: list[Dataset]) -> str:
     block_match = re.search(
-        r"(^\s*<tbody>\s*$)(.*?)(^\s*</tbody>\s*$)",
+        rf"(^\s*{re.escape(TABLES_START)}\s*$)(.*?)(^\s*{re.escape(TABLES_END)}\s*$)",
         html_text,
         flags=re.DOTALL | re.MULTILINE,
     )
     if block_match is None:
-        msg = "Could not find <tbody> block in index.html."
+        msg = "Could not find data tables markers in index.html."
         raise ValueError(msg)
 
-    new_block = f"{block_match.group(1)}\n{rows_html}\n{block_match.group(3)}"
-    updated = (
-        html_text[: block_match.start()] + new_block + html_text[block_match.end() :]
-    )
-    index_path.write_text(updated, encoding="utf-8")
+    indent_match = re.match(r"^(\s*)", block_match.group(1))
+    indent = indent_match.group(1) if indent_match else ""
+    tables_html = _render_tables(datasets, indent)
+    new_block = f"{block_match.group(1)}\n{tables_html}\n{block_match.group(3)}"
+    return html_text[: block_match.start()] + new_block + html_text[block_match.end() :]
+
+
+def _render_index_html(index_path: Path, datasets: list[Dataset]) -> None:
+    html_text = index_path.read_text(encoding="utf-8")
+    html_text = _ensure_stylesheet_link(html_text)
+    html_text = _replace_tables(html_text, datasets)
+    index_path.write_text(html_text, encoding="utf-8")
 
 
 def main() -> None:
-    dataset = _load_dataset(DATA_PATH)
-    _render_index_html(INDEX_PATH, dataset)
+    datasets = [_load_dataset(config) for config in DATASET_CONFIGS]
+    _render_index_html(INDEX_PATH, datasets)
 
 
 if __name__ == "__main__":
