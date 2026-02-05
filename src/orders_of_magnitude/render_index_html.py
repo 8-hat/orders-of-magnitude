@@ -1,4 +1,4 @@
-"""Render index.html from data/observables.yml."""
+"""Render index.html from data/lengths.yml."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-DATA_PATH = ROOT / "data" / "observables.yml"
+DATA_PATH = ROOT / "data" / "lengths.yml"
 INDEX_PATH = ROOT / "index.html"
 STYLESHEET_HREF = "index.css"
 

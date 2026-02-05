@@ -55,7 +55,7 @@ def tests(session: nox.Session) -> None:
 @nox.session(default=False)
 def render_index_html(session: nox.Session) -> None:
     """
-    Update index.html from data/observables.yml.
+    Update index.html from data/lengths.yml.
     """
     session.install("-e.")
     session.run(
