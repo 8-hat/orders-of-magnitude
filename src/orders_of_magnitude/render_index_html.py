@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import html
-import re
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
@@ -15,9 +14,8 @@ from pint import errors as pint_errors
 
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_PATH = ROOT / "index.html"
-STYLESHEET_HREF = "index.css"
-TABLES_START = "<!-- DATA_TABLES_START -->"
-TABLES_END = "<!-- DATA_TABLES_END -->"
+TEMPLATE_PATH = ROOT / "templates" / "index.html"
+TABLES_PLACEHOLDER = "{{ tables }}"
 UNIT_REGISTRY: pint.UnitRegistry[Any] = pint.UnitRegistry()
 
 
@@ -221,59 +219,35 @@ def _render_tables(datasets: list[Dataset], indent: str) -> str:
     return "\n\n".join(_render_table(dataset, indent) for dataset in datasets)
 
 
-def _ensure_stylesheet_link(html_text: str) -> str:
-    link_pattern = (
-        r"<link\b"
-        r"(?=[^>]*\brel=[\"']stylesheet[\"'])"
-        rf"(?=[^>]*\bhref=[\"']{re.escape(STYLESHEET_HREF)}[\"'])"
-        r"[^>]*>"
+def _render_index_html(
+    index_path: Path, template_path: Path, datasets: list[Dataset]
+) -> None:
+    if not template_path.exists():
+        msg = f"Missing HTML template at {template_path}."
+        raise FileNotFoundError(msg)
+
+    template_text = template_path.read_text(encoding="utf-8")
+    if TABLES_PLACEHOLDER not in template_text:
+        msg = f"Template missing tables placeholder '{TABLES_PLACEHOLDER}'."
+        raise ValueError(msg)
+
+    placeholder_line = next(
+        (line for line in template_text.splitlines() if TABLES_PLACEHOLDER in line),
+        None,
     )
-    if re.search(link_pattern, html_text, flags=re.IGNORECASE):
-        return html_text
-
-    head_open = re.search(r"(^\s*)<head>\s*$", html_text, flags=re.MULTILINE)
-    if head_open is None:
-        msg = "Could not find <head> tag in index.html."
+    if placeholder_line is None:
+        msg = f"Template missing tables placeholder '{TABLES_PLACEHOLDER}'."
         raise ValueError(msg)
 
-    head_close = re.search(r"(^\s*</head>\s*$)", html_text, flags=re.MULTILINE)
-    if head_close is None:
-        msg = "Could not find </head> tag in index.html."
-        raise ValueError(msg)
-
-    indent = f"{head_open.group(1)}  "
-    link_line = f'{indent}<link rel="stylesheet" href="{STYLESHEET_HREF}" />'
-    insertion = f"{link_line}\n"
-    return html_text[: head_close.start()] + insertion + html_text[head_close.start() :]
-
-
-def _replace_tables(html_text: str, datasets: list[Dataset]) -> str:
-    block_match = re.search(
-        rf"(^\s*{re.escape(TABLES_START)}\s*$)(.*?)(^\s*{re.escape(TABLES_END)}\s*$)",
-        html_text,
-        flags=re.DOTALL | re.MULTILINE,
-    )
-    if block_match is None:
-        msg = "Could not find data tables markers in index.html."
-        raise ValueError(msg)
-
-    indent_match = re.match(r"^(\s*)", block_match.group(1))
-    indent = indent_match.group(1) if indent_match else ""
+    indent = placeholder_line.split(TABLES_PLACEHOLDER, 1)[0]
     tables_html = _render_tables(datasets, indent)
-    new_block = f"{block_match.group(1)}\n{tables_html}\n{block_match.group(3)}"
-    return html_text[: block_match.start()] + new_block + html_text[block_match.end() :]
-
-
-def _render_index_html(index_path: Path, datasets: list[Dataset]) -> None:
-    html_text = index_path.read_text(encoding="utf-8")
-    html_text = _ensure_stylesheet_link(html_text)
-    html_text = _replace_tables(html_text, datasets)
-    index_path.write_text(html_text, encoding="utf-8")
+    rendered = template_text.replace(placeholder_line, tables_html, 1)
+    index_path.write_text(rendered, encoding="utf-8")
 
 
 def main() -> None:
     datasets = [_load_dataset(config) for config in DATASET_CONFIGS]
-    _render_index_html(INDEX_PATH, datasets)
+    _render_index_html(INDEX_PATH, TEMPLATE_PATH, datasets)
 
 
 if __name__ == "__main__":

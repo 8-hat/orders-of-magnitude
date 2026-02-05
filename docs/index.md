@@ -19,6 +19,7 @@ pip install orders_of_magnitude
 
 ## Update index.html
 
-1. Edit `data/lengths.yml`.
-2. Run `nox -s render_index_html`.
-3. Commit the updated `index.html`.
+1. Edit `data/lengths.yml` (and any other dataset files).
+2. Edit `templates/index.html` if you want to change the page layout.
+3. Run `nox -s render_index_html`.
+4. Commit the updated `index.html`.
