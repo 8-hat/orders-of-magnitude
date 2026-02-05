@@ -13,6 +13,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 DATA_PATH = ROOT / "data" / "observables.yml"
 INDEX_PATH = ROOT / "index.html"
+STYLESHEET_HREF = "index.css"
 
 
 @dataclass(frozen=True)
@@ -159,8 +160,35 @@ def _render_rows(observables: list[Observable], indent: str) -> str:
     return "\n".join(rows)
 
 
+def _ensure_stylesheet_link(html_text: str) -> str:
+    link_pattern = (
+        r"<link\b"
+        r"(?=[^>]*\brel=[\"']stylesheet[\"'])"
+        rf"(?=[^>]*\bhref=[\"']{re.escape(STYLESHEET_HREF)}[\"'])"
+        r"[^>]*>"
+    )
+    if re.search(link_pattern, html_text, flags=re.IGNORECASE):
+        return html_text
+
+    head_open = re.search(r"(^\s*)<head>\s*$", html_text, flags=re.MULTILINE)
+    if head_open is None:
+        msg = "Could not find <head> tag in index.html."
+        raise ValueError(msg)
+
+    head_close = re.search(r"(^\s*</head>\s*$)", html_text, flags=re.MULTILINE)
+    if head_close is None:
+        msg = "Could not find </head> tag in index.html."
+        raise ValueError(msg)
+
+    indent = f"{head_open.group(1)}  "
+    link_line = f'{indent}<link rel="stylesheet" href="{STYLESHEET_HREF}" />'
+    insertion = f"{link_line}\n"
+    return html_text[: head_close.start()] + insertion + html_text[head_close.start() :]
+
+
 def _render_index_html(index_path: Path, observables: list[Observable]) -> None:
     html_text = index_path.read_text(encoding="utf-8")
+    html_text = _ensure_stylesheet_link(html_text)
     match = re.search(r"(^\s*)<tbody>\s*$", html_text, flags=re.MULTILINE)
     if match is None:
         msg = "Could not find <tbody> tag in index.html."
