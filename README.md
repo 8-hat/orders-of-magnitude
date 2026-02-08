@@ -11,12 +11,13 @@
 
 [![Coverage][coverage-badge]][coverage-link]
 
-## Update index.html
+## Update index files
 
 1. Edit `data/lengths.yml` (and any other dataset files).
-2. Edit `templates/index.html` if you want to change the page layout.
+2. Edit `src/orders_of_magnitude/templates/index.html` for layout and
+   `src/orders_of_magnitude/templates/index.css` for styles.
 3. Run `nox -s render_index_html`.
-4. Commit the updated `index.html`.
+4. Commit the updated `index.html` and `index.css`.
 
 <!-- prettier-ignore-start -->
 [actions-badge]:            https://github.com/8-hat/orders-of-magnitude/workflows/CI/badge.svg

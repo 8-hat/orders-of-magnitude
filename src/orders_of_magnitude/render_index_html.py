@@ -1,4 +1,4 @@
-"""Render index.html from data/lengths.yml and data/times.yml."""
+"""Render index.html and index.css from dataset YAML files and templates."""
 
 from __future__ import annotations
 
@@ -13,8 +13,11 @@ import yaml
 from pint import errors as pint_errors
 
 ROOT = Path(__file__).resolve().parents[2]
+PACKAGE_ROOT = Path(__file__).resolve().parent
 INDEX_PATH = ROOT / "index.html"
-TEMPLATE_PATH = ROOT / "templates" / "index.html"
+INDEX_CSS_PATH = ROOT / "index.css"
+HTML_TEMPLATE_PATH = PACKAGE_ROOT / "templates" / "index.html"
+CSS_TEMPLATE_PATH = PACKAGE_ROOT / "templates" / "index.css"
 TABLES_PLACEHOLDER = "{{ tables }}"
 UNIT_REGISTRY: pint.UnitRegistry[Any] = pint.UnitRegistry()
 
@@ -245,9 +248,19 @@ def _render_index_html(
     index_path.write_text(rendered, encoding="utf-8")
 
 
+def _render_index_css(index_css_path: Path, template_css_path: Path) -> None:
+    if not template_css_path.exists():
+        msg = f"Missing CSS template at {template_css_path}."
+        raise FileNotFoundError(msg)
+
+    css_text = template_css_path.read_text(encoding="utf-8")
+    index_css_path.write_text(css_text, encoding="utf-8")
+
+
 def main() -> None:
     datasets = [_load_dataset(config) for config in DATASET_CONFIGS]
-    _render_index_html(INDEX_PATH, TEMPLATE_PATH, datasets)
+    _render_index_html(INDEX_PATH, HTML_TEMPLATE_PATH, datasets)
+    _render_index_css(INDEX_CSS_PATH, CSS_TEMPLATE_PATH)
 
 
 if __name__ == "__main__":
