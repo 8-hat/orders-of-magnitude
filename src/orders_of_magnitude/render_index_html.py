@@ -14,17 +14,21 @@ from pint import errors as pint_errors
 
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = Path(__file__).resolve().parent
+DATA_ROOT = ROOT / "data"
+TEMPLATE_ROOT = PACKAGE_ROOT / "templates"
 INDEX_PATH = ROOT / "index.html"
 INDEX_CSS_PATH = ROOT / "index.css"
-HTML_TEMPLATE_PATH = PACKAGE_ROOT / "templates" / "index.html"
-CSS_TEMPLATE_PATH = PACKAGE_ROOT / "templates" / "index.css"
 TABLES_PLACEHOLDER = "{{ tables }}"
+DATASET_SOURCES: tuple[tuple[Path, str], ...] = (
+    (DATA_ROOT / "lengths.yml", "m"),
+    (DATA_ROOT / "times.yml", "s"),
+)
 UNIT_REGISTRY: pint.UnitRegistry[Any] = pint.UnitRegistry()
 
 
 @dataclass(frozen=True)
 class Observable:
-    """Structured observable used to render the index table."""
+    """Observable rendered in the index table."""
 
     name: str
     value: Decimal
@@ -33,24 +37,17 @@ class Observable:
 
 @dataclass(frozen=True)
 class Dataset:
-    """Structured dataset used to render the index table."""
+    """Dataset and its normalized observables."""
 
     title: str
     observables: list[Observable]
 
 
-@dataclass(frozen=True)
-class DatasetConfig:
-    """Configuration for a dataset source and its target unit."""
-
-    path: Path
-    target_unit: str
-
-
-DATASET_CONFIGS: tuple[DatasetConfig, ...] = (
-    DatasetConfig(path=ROOT / "data" / "lengths.yml", target_unit="m"),
-    DatasetConfig(path=ROOT / "data" / "times.yml", target_unit="s"),
-)
+def _read_text(path: Path, label: str) -> str:
+    if not path.exists():
+        msg = f"Missing {label} at {path}."
+        raise FileNotFoundError(msg)
+    return path.read_text(encoding="utf-8")
 
 
 def _require_field(item: dict[str, object], field: str, index: int) -> object:
@@ -60,21 +57,20 @@ def _require_field(item: dict[str, object], field: str, index: int) -> object:
     return item[field]
 
 
-def _parse_decimal(value: object, field: str, index: int) -> Decimal:
-    if isinstance(value, bool):
-        msg = f"Observable {index} field '{field}' must be a number."
-        raise TypeError(msg)
-    if isinstance(value, (int, float, str)):
-        return Decimal(str(value))
-    msg = f"Observable {index} field '{field}' must be a number."
-    raise TypeError(msg)
-
-
-def _parse_str(value: object, field: str, index: int) -> str:
+def _require_str(item: dict[str, object], field: str, index: int) -> str:
+    value = _require_field(item, field, index)
     if isinstance(value, str):
         return value
     msg = f"Observable {index} field '{field}' must be a string."
     raise TypeError(msg)
+
+
+def _require_decimal(item: dict[str, object], field: str, index: int) -> Decimal:
+    value = _require_field(item, field, index)
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        msg = f"Observable {index} field '{field}' must be a number."
+        raise TypeError(msg)
+    return Decimal(str(value))
 
 
 def _convert_to_target_unit(
@@ -87,7 +83,7 @@ def _convert_to_target_unit(
         raise ValueError(msg) from exc
 
     try:
-        converted = quantity.to(target_unit)
+        magnitude = quantity.to(target_unit).magnitude
     except pint_errors.DimensionalityError as exc:
         msg = (
             f"Observable {index} field 'unit' ('{unit}') cannot convert to "
@@ -95,10 +91,7 @@ def _convert_to_target_unit(
         )
         raise ValueError(msg) from exc
 
-    magnitude = converted.magnitude
-    if not isinstance(magnitude, Decimal):
-        magnitude = Decimal(str(magnitude))
-    return magnitude, target_unit
+    return Decimal(str(magnitude)), target_unit
 
 
 def _scientific_parts(value: Decimal) -> tuple[str, int]:
@@ -108,27 +101,21 @@ def _scientific_parts(value: Decimal) -> tuple[str, int]:
         msg = "Observable value must be a finite number."
         raise ValueError(msg)
 
-    sign = "-" if value.is_signed() else ""
-    magnitude = value.copy_abs()
-    exponent = magnitude.adjusted()
-    mantissa = magnitude.scaleb(-exponent)
-
-    mantissa = mantissa.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    exponent = value.copy_abs().adjusted()
+    mantissa = (
+        value.copy_abs()
+        .scaleb(-exponent)
+        .quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    )
     if mantissa == Decimal("10.00"):
         mantissa = Decimal("1.00")
         exponent += 1
+    sign = "-" if value.is_signed() else ""
+    return f"{sign}{mantissa}", exponent
 
-    mantissa_str = f"{sign}{mantissa}"
-    return mantissa_str, exponent
 
-
-def _load_dataset(config: DatasetConfig) -> Dataset:
-    path = config.path
-    if not path.exists():
-        msg = f"Missing YAML file at {path}."
-        raise FileNotFoundError(msg)
-
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+def _load_dataset(path: Path, target_unit: str) -> Dataset:
+    raw = yaml.safe_load(_read_text(path, "YAML file"))
     if not isinstance(raw, dict):
         msg = "Top-level YAML must be a mapping with an 'observables' key."
         raise TypeError(msg)
@@ -148,74 +135,51 @@ def _load_dataset(config: DatasetConfig) -> Dataset:
         if not isinstance(item, dict):
             msg = f"Observable {index} must be a mapping."
             raise TypeError(msg)
-
-        name = _parse_str(_require_field(item, "name", index), "name", index)
-        value = _parse_decimal(
-            _require_field(item, "value", index),
-            "value",
-            index,
-        )
-        unit = _parse_str(_require_field(item, "unit", index), "unit", index)
-        value, unit = _convert_to_target_unit(value, unit, config.target_unit, index)
-
-        observables.append(
-            Observable(
-                name=name,
-                value=value,
-                unit=unit,
-            )
-        )
+        name = _require_str(item, "name", index)
+        value = _require_decimal(item, "value", index)
+        unit = _require_str(item, "unit", index)
+        value, unit = _convert_to_target_unit(value, unit, target_unit, index)
+        observables.append(Observable(name=name, value=value, unit=unit))
 
     return Dataset(title=title, observables=observables)
 
 
-def _render_rows(observables: list[Observable], indent: str) -> str:
-    indent_tr = f"{indent}  "
-    indent_td = f"{indent_tr}  "
-
-    rows: list[str] = []
-    for observable in observables:
-        mantissa, exponent = _scientific_parts(observable.value)
-        unit = html.escape(observable.unit)
-        name = html.escape(observable.name)
-        order = f"10<sup>{exponent}</sup> {unit}"
-        value = f"{mantissa} x 10<sup>{exponent}</sup> {unit}"
-        row = "\n".join(
-            [
-                f"{indent_tr}<tr>",
-                f'{indent_td}<td class="math">{order}</td>',
-                f"{indent_td}<td>{name}</td>",
-                f'{indent_td}<td class="math">{value}</td>',
-                f"{indent_tr}</tr>",
-            ]
-        )
-        rows.append(row)
-
-    return "\n".join(rows)
+def _render_row(observable: Observable, indent: str) -> str:
+    mantissa, exponent = _scientific_parts(observable.value)
+    unit = html.escape(observable.unit)
+    name = html.escape(observable.name)
+    order = f"10<sup>{exponent}</sup> {unit}"
+    value = f"{mantissa} x 10<sup>{exponent}</sup> {unit}"
+    return (
+        f"{indent}<tr>\n"
+        f'{indent}  <td class="math">{order}</td>\n'
+        f"{indent}  <td>{name}</td>\n"
+        f'{indent}  <td class="math">{value}</td>\n'
+        f"{indent}</tr>"
+    )
 
 
 def _render_table(dataset: Dataset, indent: str) -> str:
-    title = html.escape(dataset.title)
-    tbody_indent = f"{indent}    "
-    rows_html = _render_rows(dataset.observables, tbody_indent)
-    table_lines = [
-        f'{indent}<section class="dataset">',
-        f"{indent}  <h2>{title}</h2>",
-        f"{indent}  <table>",
-        f"{indent}    <thead>",
-        f"{indent}      <tr>",
-        f"{indent}        <th>Order of magnitude</th>",
-        f"{indent}        <th>Name</th>",
-        f"{indent}        <th>Value</th>",
-        f"{indent}      </tr>",
-        f"{indent}    </thead>",
-        f"{indent}    <tbody>",
-        rows_html,
-        f"{indent}    </tbody>",
-        f"{indent}  </table>",
-        f"{indent}</section>",
-    ]
-    return "\n".join(table_lines)
+    rows = "\n".join(
+        _render_row(observable, f"{indent}      ") for observable in dataset.observables
+    )
+    return (
+        f'{indent}<section class="dataset">\n'
+        f"{indent}  <h2>{html.escape(dataset.title)}</h2>\n"
+        f"{indent}  <table>\n"
+        f"{indent}    <thead>\n"
+        f"{indent}      <tr>\n"
+        f"{indent}        <th>Order of magnitude</th>\n"
+        f"{indent}        <th>Name</th>\n"
+        f"{indent}        <th>Value</th>\n"
+        f"{indent}      </tr>\n"
+        f"{indent}    </thead>\n"
+        f"{indent}    <tbody>\n"
+        f"{rows}\n"
+        f"{indent}    </tbody>\n"
+        f"{indent}  </table>\n"
+        f"{indent}</section>"
+    )
 
 
 def _render_tables(datasets: list[Dataset], indent: str) -> str:
@@ -225,15 +189,7 @@ def _render_tables(datasets: list[Dataset], indent: str) -> str:
 def _render_index_html(
     index_path: Path, template_path: Path, datasets: list[Dataset]
 ) -> None:
-    if not template_path.exists():
-        msg = f"Missing HTML template at {template_path}."
-        raise FileNotFoundError(msg)
-
-    template_text = template_path.read_text(encoding="utf-8")
-    if TABLES_PLACEHOLDER not in template_text:
-        msg = f"Template missing tables placeholder '{TABLES_PLACEHOLDER}'."
-        raise ValueError(msg)
-
+    template_text = _read_text(template_path, "HTML template")
     placeholder_line = next(
         (line for line in template_text.splitlines() if TABLES_PLACEHOLDER in line),
         None,
@@ -244,23 +200,21 @@ def _render_index_html(
 
     indent = placeholder_line.split(TABLES_PLACEHOLDER, 1)[0]
     tables_html = _render_tables(datasets, indent)
-    rendered = template_text.replace(placeholder_line, tables_html, 1)
-    index_path.write_text(rendered, encoding="utf-8")
+    index_path.write_text(
+        template_text.replace(placeholder_line, tables_html, 1), encoding="utf-8"
+    )
 
 
 def _render_index_css(index_css_path: Path, template_css_path: Path) -> None:
-    if not template_css_path.exists():
-        msg = f"Missing CSS template at {template_css_path}."
-        raise FileNotFoundError(msg)
-
-    css_text = template_css_path.read_text(encoding="utf-8")
-    index_css_path.write_text(css_text, encoding="utf-8")
+    index_css_path.write_text(
+        _read_text(template_css_path, "CSS template"), encoding="utf-8"
+    )
 
 
 def main() -> None:
-    datasets = [_load_dataset(config) for config in DATASET_CONFIGS]
-    _render_index_html(INDEX_PATH, HTML_TEMPLATE_PATH, datasets)
-    _render_index_css(INDEX_CSS_PATH, CSS_TEMPLATE_PATH)
+    datasets = [_load_dataset(path, target) for path, target in DATASET_SOURCES]
+    _render_index_html(INDEX_PATH, TEMPLATE_ROOT / "index.html", datasets)
+    _render_index_css(INDEX_CSS_PATH, TEMPLATE_ROOT / "index.css")
 
 
 if __name__ == "__main__":
