@@ -50,27 +50,34 @@ def _read_text(path: Path, label: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _require_field(item: dict[str, object], field: str, index: int) -> object:
-    if field not in item:
-        msg = f"Observable {index} missing '{field}'."
-        raise ValueError(msg)
-    return item[field]
-
-
-def _require_str(item: dict[str, object], field: str, index: int) -> str:
-    value = _require_field(item, field, index)
-    if isinstance(value, str):
-        return value
-    msg = f"Observable {index} field '{field}' must be a string."
-    raise TypeError(msg)
-
-
-def _require_decimal(item: dict[str, object], field: str, index: int) -> Decimal:
-    value = _require_field(item, field, index)
-    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
-        msg = f"Observable {index} field '{field}' must be a number."
+def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
+    if not isinstance(item, dict):
+        msg = f"Observable {index} must be a mapping."
         raise TypeError(msg)
-    return Decimal(str(value))
+
+    try:
+        name_raw = item["name"]
+        value_raw = item["value"]
+        unit_raw = item["unit"]
+    except KeyError as exc:
+        missing_field = exc.args[0]
+        msg = f"Observable {index} missing '{missing_field}'."
+        raise ValueError(msg) from exc
+
+    if not isinstance(name_raw, str):
+        msg = f"Observable {index} field 'name' must be a string."
+        raise TypeError(msg)
+    if not isinstance(unit_raw, str):
+        msg = f"Observable {index} field 'unit' must be a string."
+        raise TypeError(msg)
+    if isinstance(value_raw, bool) or not isinstance(value_raw, (int, float, str)):
+        msg = f"Observable {index} field 'value' must be a number."
+        raise TypeError(msg)
+
+    value, unit = _convert_to_target_unit(
+        Decimal(str(value_raw)), unit_raw, target_unit, index
+    )
+    return Observable(name=name_raw, value=value, unit=unit)
 
 
 def _convert_to_target_unit(
@@ -130,16 +137,9 @@ def _load_dataset(path: Path, target_unit: str) -> Dataset:
         msg = "YAML 'observables' must be a list."
         raise TypeError(msg)
 
-    observables: list[Observable] = []
-    for index, item in enumerate(items):
-        if not isinstance(item, dict):
-            msg = f"Observable {index} must be a mapping."
-            raise TypeError(msg)
-        name = _require_str(item, "name", index)
-        value = _require_decimal(item, "value", index)
-        unit = _require_str(item, "unit", index)
-        value, unit = _convert_to_target_unit(value, unit, target_unit, index)
-        observables.append(Observable(name=name, value=value, unit=unit))
+    observables = [
+        _parse_observable(item, index, target_unit) for index, item in enumerate(items)
+    ]
 
     return Dataset(title=title, observables=observables)
 
@@ -182,10 +182,6 @@ def _render_table(dataset: Dataset, indent: str) -> str:
     )
 
 
-def _render_tables(datasets: list[Dataset], indent: str) -> str:
-    return "\n\n".join(_render_table(dataset, indent) for dataset in datasets)
-
-
 def _render_index_html(
     index_path: Path, template_path: Path, datasets: list[Dataset]
 ) -> None:
@@ -199,7 +195,7 @@ def _render_index_html(
         raise ValueError(msg)
 
     indent = placeholder_line.split(TABLES_PLACEHOLDER, 1)[0]
-    tables_html = _render_tables(datasets, indent)
+    tables_html = "\n\n".join(_render_table(dataset, indent) for dataset in datasets)
     index_path.write_text(
         template_text.replace(placeholder_line, tables_html, 1), encoding="utf-8"
     )
