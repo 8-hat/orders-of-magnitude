@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import logging
 import os
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
@@ -30,6 +31,7 @@ DATASET_SOURCES: tuple[tuple[Path, str], ...] = (
     (DATA_ROOT / "times.yml", "s"),
 )
 UNIT_REGISTRY: pint.UnitRegistry[Any] = pint.UnitRegistry()
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -284,8 +286,17 @@ def _parse_cli_args(argv: list[str] | None) -> tuple[Path, Path]:
     return parsed.html, parsed.css
 
 
+def _write_action(path: Path) -> str:
+    """Return ``created`` when ``path`` is new, otherwise ``updated``."""
+    if path.exists():
+        return "updated"
+    return "created"
+
+
 def render_site(html_output_path: Path, css_output_path: Path) -> None:
     """Render site HTML and CSS files to the provided output paths."""
+    html_action = _write_action(html_output_path)
+    css_action = _write_action(css_output_path)
     stylesheet_href = _compute_stylesheet_href(html_output_path, css_output_path)
     datasets = _load_datasets()
     _write_html_page(
@@ -295,10 +306,13 @@ def render_site(html_output_path: Path, css_output_path: Path) -> None:
         stylesheet_href=stylesheet_href,
     )
     _write_css_file(css_output_path, CSS_TEMPLATE_PATH)
+    LOGGER.info("%s HTML file: %s", html_action.capitalize(), html_output_path)
+    LOGGER.info("%s CSS file: %s", css_action.capitalize(), css_output_path)
 
 
 def main(argv: list[str] | None = None) -> None:
     """CLI entry point for rendering the site assets."""
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     html_output_path, css_output_path = _parse_cli_args(argv)
     render_site(html_output_path, css_output_path)
 
