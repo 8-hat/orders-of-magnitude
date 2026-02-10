@@ -36,7 +36,7 @@ dependencies = [
 ]
 
 [project.scripts]
-orders-of-magnitude = "orders_of_magnitude.render_index_html:main"
+orders-of-magnitude = "orders_of_magnitude.render_site:main"
 
 [project.urls]
 Homepage = "https://github.com/8-hat/orders-of-magnitude"

@@ -53,7 +53,7 @@ def tests(session: nox.Session) -> None:
 
 
 @nox.session(default=False)
-def render_index_html(session: nox.Session) -> None:
+def render_site(session: nox.Session) -> None:
     """
     Update index.html and index.css from package data files and templates.
     """
@@ -61,7 +61,7 @@ def render_index_html(session: nox.Session) -> None:
     session.run(
         "python",
         "-m",
-        "orders_of_magnitude.render_index_html",
+        "orders_of_magnitude.render_site",
         "--html",
         "index.html",
         "--css",

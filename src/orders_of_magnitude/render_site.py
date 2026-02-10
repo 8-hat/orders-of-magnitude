@@ -1,4 +1,4 @@
-"""Render index.html and index.css from dataset YAML files and templates."""
+"""Render site HTML and CSS from dataset YAML files and templates."""
 
 from __future__ import annotations
 
@@ -147,7 +147,7 @@ def _load_dataset(path: Path, target_unit: str) -> Dataset:
     return Dataset(title=title, observables=observables)
 
 
-def _render_row(observable: Observable, indent: str) -> str:
+def _render_observable_row(observable: Observable, indent: str) -> str:
     mantissa, exponent = _scientific_parts(observable.value)
     unit = html.escape(observable.unit)
     value = f"{mantissa} x 10<sup>{exponent}</sup> {unit}"
@@ -162,10 +162,11 @@ def _render_row(observable: Observable, indent: str) -> str:
     )
 
 
-def _render_table(dataset: Dataset, indent: str) -> str:
+def _render_dataset_section(dataset: Dataset, indent: str) -> str:
     row_indent = f"{indent}      "
     rows = "\n".join(
-        _render_row(observable, row_indent) for observable in dataset.observables
+        _render_observable_row(observable, row_indent)
+        for observable in dataset.observables
     )
     headers = "\n".join(f"{indent}        <th>{label}</th>" for label in TABLE_HEADERS)
     return "\n".join(
@@ -187,10 +188,13 @@ def _render_table(dataset: Dataset, indent: str) -> str:
     )
 
 
-def _render_index_html(
-    index_path: Path, template_path: Path, datasets: list[Dataset], css_href: str
+def _write_html_page(
+    html_output_path: Path,
+    html_template_path: Path,
+    datasets: list[Dataset],
+    stylesheet_href: str,
 ) -> None:
-    template_text = _read_text(template_path, "HTML template")
+    template_text = _read_text(html_template_path, "HTML template")
     if CSS_HREF_PLACEHOLDER not in template_text:
         message = f"Template missing CSS href placeholder '{CSS_HREF_PLACEHOLDER}'."
         raise ValueError(message)
@@ -203,22 +207,24 @@ def _render_index_html(
         raise ValueError(message)
 
     indent = placeholder_line.split(TABLES_PLACEHOLDER, 1)[0]
-    tables_html = "\n\n".join(_render_table(dataset, indent) for dataset in datasets)
-    rendered_template = template_text.replace(
-        CSS_HREF_PLACEHOLDER, html.escape(css_href, quote=True)
+    tables_html = "\n\n".join(
+        _render_dataset_section(dataset, indent) for dataset in datasets
     )
-    index_path.write_text(
+    rendered_template = template_text.replace(
+        CSS_HREF_PLACEHOLDER, html.escape(stylesheet_href, quote=True)
+    )
+    html_output_path.write_text(
         rendered_template.replace(placeholder_line, tables_html, 1), encoding="utf-8"
     )
 
 
-def _render_index_css(index_css_path: Path, template_css_path: Path) -> None:
-    index_css_path.write_text(
-        _read_text(template_css_path, "CSS template"), encoding="utf-8"
+def _write_css_file(css_output_path: Path, css_template_path: Path) -> None:
+    css_output_path.write_text(
+        _read_text(css_template_path, "CSS template"), encoding="utf-8"
     )
 
 
-def _derive_css_href(html_path: Path, css_path: Path) -> str:
+def _compute_stylesheet_href(html_path: Path, css_path: Path) -> str:
     try:
         relative_css_path = os.path.relpath(
             css_path.resolve(), start=html_path.resolve().parent
@@ -229,7 +235,7 @@ def _derive_css_href(html_path: Path, css_path: Path) -> str:
     return Path(relative_css_path).as_posix()
 
 
-def _parse_args(argv: list[str] | None) -> tuple[Path, Path]:
+def _parse_cli_args(argv: list[str] | None) -> tuple[Path, Path]:
     parser = argparse.ArgumentParser(
         description=(
             "Render orders-of-magnitude HTML and CSS files from package datasets."
@@ -252,13 +258,16 @@ def _parse_args(argv: list[str] | None) -> tuple[Path, Path]:
 
 
 def main(argv: list[str] | None = None) -> None:
-    html_path, css_path = _parse_args(argv)
-    css_href = _derive_css_href(html_path, css_path)
+    html_path, css_path = _parse_cli_args(argv)
+    stylesheet_href = _compute_stylesheet_href(html_path, css_path)
     datasets = [_load_dataset(path, target) for path, target in DATASET_SOURCES]
-    _render_index_html(
-        html_path, HTML_TEMPLATE_ROOT / "index.html", datasets, css_href=css_href
+    _write_html_page(
+        html_path,
+        HTML_TEMPLATE_ROOT / "index.html",
+        datasets,
+        stylesheet_href=stylesheet_href,
     )
-    _render_index_css(css_path, CSS_TEMPLATE_PATH)
+    _write_css_file(css_path, CSS_TEMPLATE_PATH)
 
 
 if __name__ == "__main__":
