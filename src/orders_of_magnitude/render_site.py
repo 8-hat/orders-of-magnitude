@@ -17,12 +17,14 @@ from pint import errors as pint_errors
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DATA_ROOT = PACKAGE_ROOT / "data"
 HTML_TEMPLATE_ROOT = PACKAGE_ROOT / "templates"
+HTML_TEMPLATE_PATH = HTML_TEMPLATE_ROOT / "index.html"
 CSS_TEMPLATE_PATH = HTML_TEMPLATE_ROOT / "index.css"
 DEFAULT_HTML_FILENAME = "orders-of-magnitude.html"
 DEFAULT_CSS_FILENAME = "orders-of-magnitude.css"
 TABLES_PLACEHOLDER = "{{ tables }}"
 CSS_HREF_PLACEHOLDER = "{{ css_href }}"
 TABLE_HEADERS: tuple[str, ...] = ("Order of magnitude", "Name", "Value")
+OBSERVABLE_FIELDS: tuple[str, ...] = ("name", "value", "unit")
 DATASET_SOURCES: tuple[tuple[Path, str], ...] = (
     (DATA_ROOT / "lengths.yml", "m"),
     (DATA_ROOT / "times.yml", "s"),
@@ -54,36 +56,43 @@ def _read_text(path: Path, label: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _as_mapping(item: object, message: str) -> dict[str, object]:
+def _ensure_mapping(item: object, message: str) -> dict[str, object]:
     if isinstance(item, dict):
         return item
     raise TypeError(message)
 
 
+def _ensure_string(value: object, message: str) -> str:
+    if isinstance(value, str):
+        return value
+    raise TypeError(message)
+
+
+def _parse_decimal(value: object, message: str) -> Decimal:
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise TypeError(message)
+    return Decimal(str(value))
+
+
 def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
-    observable = _as_mapping(item, f"Observable {index} must be a mapping.")
-    for field in ("name", "value", "unit"):
+    observable = _ensure_mapping(item, f"Observable {index} must be a mapping.")
+    for field in OBSERVABLE_FIELDS:
         if field not in observable:
             message = f"Observable {index} missing '{field}'."
             raise ValueError(message)
 
-    name_raw = observable["name"]
-    value_raw = observable["value"]
-    unit_raw = observable["unit"]
-    if not isinstance(name_raw, str):
-        message = f"Observable {index} field 'name' must be a string."
-        raise TypeError(message)
-    if not isinstance(unit_raw, str):
-        message = f"Observable {index} field 'unit' must be a string."
-        raise TypeError(message)
-    if isinstance(value_raw, bool) or not isinstance(value_raw, (int, float, str)):
-        message = f"Observable {index} field 'value' must be a number."
-        raise TypeError(message)
-
-    value = _convert_to_target_unit(
-        Decimal(str(value_raw)), unit_raw, target_unit, index
+    name = _ensure_string(
+        observable["name"], f"Observable {index} field 'name' must be a string."
     )
-    return Observable(name=name_raw, value=value, unit=target_unit)
+    unit = _ensure_string(
+        observable["unit"], f"Observable {index} field 'unit' must be a string."
+    )
+    value = _parse_decimal(
+        observable["value"], f"Observable {index} field 'value' must be a number."
+    )
+
+    value = _convert_to_target_unit(value, unit, target_unit, index)
+    return Observable(name=name, value=value, unit=target_unit)
 
 
 def _convert_to_target_unit(
@@ -128,14 +137,11 @@ def _scientific_parts(value: Decimal) -> tuple[str, int]:
 
 
 def _load_dataset(path: Path, target_unit: str) -> Dataset:
-    raw = _as_mapping(
+    raw = _ensure_mapping(
         yaml.safe_load(_read_text(path, "YAML file")),
         "Top-level YAML must be a mapping with an 'observables' key.",
     )
-    title = raw.get("title")
-    if not isinstance(title, str):
-        message = "YAML 'title' must be a string."
-        raise TypeError(message)
+    title = _ensure_string(raw.get("title"), "YAML 'title' must be a string.")
     items = raw.get("observables")
     if not isinstance(items, list):
         message = "YAML 'observables' must be a list."
@@ -224,14 +230,20 @@ def _write_css_file(css_output_path: Path, css_template_path: Path) -> None:
     )
 
 
+def _load_datasets() -> list[Dataset]:
+    return [_load_dataset(path, target) for path, target in DATASET_SOURCES]
+
+
 def _compute_stylesheet_href(html_path: Path, css_path: Path) -> str:
+    resolved_html_path = html_path.resolve()
+    resolved_css_path = css_path.resolve()
     try:
         relative_css_path = os.path.relpath(
-            css_path.resolve(), start=html_path.resolve().parent
+            resolved_css_path, start=resolved_html_path.parent
         )
     except ValueError:
         # This can happen on Windows when paths are on different drives.
-        return css_path.resolve().as_posix()
+        return resolved_css_path.as_posix()
     return Path(relative_css_path).as_posix()
 
 
@@ -257,17 +269,21 @@ def _parse_cli_args(argv: list[str] | None) -> tuple[Path, Path]:
     return parsed.html, parsed.css
 
 
-def main(argv: list[str] | None = None) -> None:
-    html_path, css_path = _parse_cli_args(argv)
-    stylesheet_href = _compute_stylesheet_href(html_path, css_path)
-    datasets = [_load_dataset(path, target) for path, target in DATASET_SOURCES]
+def render_site(html_output_path: Path, css_output_path: Path) -> None:
+    stylesheet_href = _compute_stylesheet_href(html_output_path, css_output_path)
+    datasets = _load_datasets()
     _write_html_page(
-        html_path,
-        HTML_TEMPLATE_ROOT / "index.html",
+        html_output_path,
+        HTML_TEMPLATE_PATH,
         datasets,
         stylesheet_href=stylesheet_href,
     )
-    _write_css_file(css_path, CSS_TEMPLATE_PATH)
+    _write_css_file(css_output_path, CSS_TEMPLATE_PATH)
+
+
+def main(argv: list[str] | None = None) -> None:
+    html_output_path, css_output_path = _parse_cli_args(argv)
+    render_site(html_output_path, css_output_path)
 
 
 if __name__ == "__main__":
