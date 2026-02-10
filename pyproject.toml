@@ -31,6 +31,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
+  "logscale>=0.1.5",
   "pint>=0.24",
   "pyyaml>=6",
 ]

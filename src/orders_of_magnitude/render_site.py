@@ -7,12 +7,13 @@ import html
 import logging
 import os
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import pint
 import yaml
+from logscale import order_of_magnitude
 from pint import errors as pint_errors
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -125,24 +126,34 @@ def _convert_to_target_unit(
 
 
 def _scientific_parts(value: Decimal) -> tuple[str, int]:
-    """Return mantissa and exponent rounded for scientific notation display."""
-    if value.is_zero():
-        return "0.00", 0
+    """Return mantissa and exponent parsed from ``logscale.order_of_magnitude``."""
     if not value.is_finite():
         message = "Observable value must be a finite number."
         raise ValueError(message)
 
-    exponent = value.copy_abs().adjusted()
-    mantissa = (
-        value.copy_abs()
-        .scaleb(-exponent)
-        .quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    )
-    if mantissa == Decimal("10.00"):
-        mantissa = Decimal("1.00")
-        exponent += 1
-    sign = "-" if value.is_signed() else ""
-    return f"{sign}{mantissa}", exponent
+    try:
+        value_as_float = float(value)
+    except (OverflowError, ValueError) as exc:
+        message = "Observable value must be representable as a float."
+        raise ValueError(message) from exc
+
+    scientific_notation = order_of_magnitude(value_as_float)
+    mantissa, separator, exponent_str = scientific_notation.partition("e")
+    if not separator:
+        message = (
+            f"order_of_magnitude returned an unexpected value: {scientific_notation!r}."
+        )
+        raise ValueError(message)
+
+    try:
+        exponent = int(exponent_str)
+    except ValueError as exc:
+        message = (
+            f"order_of_magnitude returned an invalid exponent: {scientific_notation!r}."
+        )
+        raise ValueError(message) from exc
+
+    return mantissa, exponent
 
 
 def _load_dataset(path: Path, target_unit: str) -> Dataset:
