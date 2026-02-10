@@ -11,6 +11,11 @@
 
 [![Coverage][coverage-badge]][coverage-link]
 
+## CLI
+
+Run `uvx orders-of-magnitude` to generate `orders-of-magnitude.html` and
+`orders-of-magnitude.css` in the current working directory.
+
 ## Update index files
 
 1. Edit `src/orders_of_magnitude/data/lengths.yml` (and any other dataset

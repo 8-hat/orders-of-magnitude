@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
 import html
+import os
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
@@ -12,14 +14,14 @@ import pint
 import yaml
 from pint import errors as pint_errors
 
-ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DATA_ROOT = PACKAGE_ROOT / "data"
 HTML_TEMPLATE_ROOT = PACKAGE_ROOT / "templates"
 CSS_TEMPLATE_PATH = HTML_TEMPLATE_ROOT / "index.css"
-INDEX_PATH = ROOT / "index.html"
-INDEX_CSS_PATH = ROOT / "index.css"
+DEFAULT_HTML_FILENAME = "orders-of-magnitude.html"
+DEFAULT_CSS_FILENAME = "orders-of-magnitude.css"
 TABLES_PLACEHOLDER = "{{ tables }}"
+CSS_HREF_PLACEHOLDER = "{{ css_href }}"
 TABLE_HEADERS: tuple[str, ...] = ("Order of magnitude", "Name", "Value")
 DATASET_SOURCES: tuple[tuple[Path, str], ...] = (
     (DATA_ROOT / "lengths.yml", "m"),
@@ -186,9 +188,12 @@ def _render_table(dataset: Dataset, indent: str) -> str:
 
 
 def _render_index_html(
-    index_path: Path, template_path: Path, datasets: list[Dataset]
+    index_path: Path, template_path: Path, datasets: list[Dataset], css_href: str
 ) -> None:
     template_text = _read_text(template_path, "HTML template")
+    if CSS_HREF_PLACEHOLDER not in template_text:
+        message = f"Template missing CSS href placeholder '{CSS_HREF_PLACEHOLDER}'."
+        raise ValueError(message)
     placeholder_line = next(
         (line for line in template_text.splitlines() if TABLES_PLACEHOLDER in line),
         None,
@@ -199,8 +204,11 @@ def _render_index_html(
 
     indent = placeholder_line.split(TABLES_PLACEHOLDER, 1)[0]
     tables_html = "\n\n".join(_render_table(dataset, indent) for dataset in datasets)
+    rendered_template = template_text.replace(
+        CSS_HREF_PLACEHOLDER, html.escape(css_href, quote=True)
+    )
     index_path.write_text(
-        template_text.replace(placeholder_line, tables_html, 1), encoding="utf-8"
+        rendered_template.replace(placeholder_line, tables_html, 1), encoding="utf-8"
     )
 
 
@@ -210,10 +218,47 @@ def _render_index_css(index_css_path: Path, template_css_path: Path) -> None:
     )
 
 
-def main() -> None:
+def _derive_css_href(html_path: Path, css_path: Path) -> str:
+    try:
+        relative_css_path = os.path.relpath(
+            css_path.resolve(), start=html_path.resolve().parent
+        )
+    except ValueError:
+        # This can happen on Windows when paths are on different drives.
+        return css_path.resolve().as_posix()
+    return Path(relative_css_path).as_posix()
+
+
+def _parse_args(argv: list[str] | None) -> tuple[Path, Path]:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Render orders-of-magnitude HTML and CSS files from package datasets."
+        )
+    )
+    parser.add_argument(
+        "--html",
+        type=Path,
+        default=Path(DEFAULT_HTML_FILENAME),
+        help=f"Output HTML file path (default: {DEFAULT_HTML_FILENAME}).",
+    )
+    parser.add_argument(
+        "--css",
+        type=Path,
+        default=Path(DEFAULT_CSS_FILENAME),
+        help=f"Output CSS file path (default: {DEFAULT_CSS_FILENAME}).",
+    )
+    parsed = parser.parse_args(argv)
+    return parsed.html, parsed.css
+
+
+def main(argv: list[str] | None = None) -> None:
+    html_path, css_path = _parse_args(argv)
+    css_href = _derive_css_href(html_path, css_path)
     datasets = [_load_dataset(path, target) for path, target in DATASET_SOURCES]
-    _render_index_html(INDEX_PATH, HTML_TEMPLATE_ROOT / "index.html", datasets)
-    _render_index_css(INDEX_CSS_PATH, CSS_TEMPLATE_PATH)
+    _render_index_html(
+        html_path, HTML_TEMPLATE_ROOT / "index.html", datasets, css_href=css_href
+    )
+    _render_index_css(css_path, CSS_TEMPLATE_PATH)
 
 
 if __name__ == "__main__":
