@@ -9,6 +9,7 @@ table {
   border-collapse: collapse;
   width: 100%;
   max-width: 700px;
+  table-layout: fixed;
 }
 
 th,
@@ -29,5 +30,16 @@ th {
 
 th:nth-child(3),
 td:nth-child(3) {
-  min-width: 12ch;
+  width: 26%;
+}
+
+th:nth-child(1),
+td:nth-child(1) {
+  width: 24%;
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+  width: 50%;
+  overflow-wrap: anywhere;
 }
