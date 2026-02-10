@@ -94,7 +94,7 @@ jobs:
         run: uv sync
 
       - name: Render index files
-        run: uv run python -m orders_of_magnitude.render_index_html
+        run: nox -s render_site
 
       - name: Ensure index files are consistent
         run: git diff --exit-code index.html index.css

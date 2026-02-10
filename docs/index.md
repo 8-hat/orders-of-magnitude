@@ -23,5 +23,5 @@ pip install orders_of_magnitude
    files).
 2. Edit `src/orders_of_magnitude/templates/index.html` for layout and
    `src/orders_of_magnitude/templates/index.css` for styles.
-3. Run `nox -s render_index_html`.
+3. Run `nox -s render_site`
 4. Commit the updated `index.html` and `index.css`.
