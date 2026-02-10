@@ -5,9 +5,9 @@ from __future__ import annotations
 import argparse
 import html
 import logging
+import math
 import os
 from dataclasses import dataclass
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +40,7 @@ class Observable:
     """Single observable entry normalized to the dataset target unit."""
 
     name: str
-    value: Decimal
+    value: float
     unit: str
 
 
@@ -74,11 +74,14 @@ def _ensure_string(value: object, message: str) -> str:
     raise TypeError(message)
 
 
-def _parse_decimal(value: object, message: str) -> Decimal:
-    """Convert a numeric-like value to ``Decimal`` while rejecting booleans."""
+def _parse_number(value: object, message: str) -> float:
+    """Convert a numeric-like value to ``float`` while rejecting booleans."""
     if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         raise TypeError(message)
-    return Decimal(str(value))
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise TypeError(message) from exc
 
 
 def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
@@ -95,7 +98,7 @@ def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
     unit = _ensure_string(
         observable["unit"], f"Observable {index} field 'unit' must be a string."
     )
-    value = _parse_decimal(
+    value = _parse_number(
         observable["value"], f"Observable {index} field 'value' must be a number."
     )
 
@@ -104,9 +107,9 @@ def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
 
 
 def _convert_to_target_unit(
-    value: Decimal, unit: str, target_unit: str, index: int
-) -> Decimal:
-    """Convert ``value`` from ``unit`` to ``target_unit`` and return a ``Decimal``."""
+    value: float, unit: str, target_unit: str, index: int
+) -> float:
+    """Convert ``value`` from ``unit`` to ``target_unit`` and return a ``float``."""
     try:
         quantity = value * UNIT_REGISTRY(unit)
     except pint_errors.UndefinedUnitError as exc:
@@ -122,22 +125,15 @@ def _convert_to_target_unit(
         )
         raise ValueError(message) from exc
 
-    return Decimal(str(magnitude))
+    return float(magnitude)
 
 
-def _scientific_parts(value: Decimal) -> tuple[str, int]:
+def _scientific_parts(value: float) -> tuple[str, int]:
     """Return mantissa and exponent parsed from ``logscale.order_of_magnitude``."""
-    if not value.is_finite():
+    if not math.isfinite(value):
         message = "Observable value must be a finite number."
         raise ValueError(message)
-
-    try:
-        value_as_float = float(value)
-    except (OverflowError, ValueError) as exc:
-        message = "Observable value must be representable as a float."
-        raise ValueError(message) from exc
-
-    scientific_notation = order_of_magnitude(value_as_float)
+    scientific_notation = order_of_magnitude(value)
     mantissa, separator, exponent_str = scientific_notation.partition("e")
     if not separator:
         message = (

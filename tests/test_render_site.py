@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import pytest
@@ -79,5 +78,5 @@ def test_main_derives_css_href_from_custom_css_path(tmp_path: Path) -> None:
 
 
 def test_scientific_parts_uses_logscale_format() -> None:
-    assert render_site._scientific_parts(Decimal("3.48e6")) == ("0.35", 7)
-    assert render_site._scientific_parts(Decimal(498)) == ("0.50", 3)
+    assert render_site._scientific_parts(3.48e6) == ("0.35", 7)
+    assert render_site._scientific_parts(498) == ("0.50", 3)
