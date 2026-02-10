@@ -13,8 +13,9 @@ import yaml
 from pint import errors as pint_errors
 
 ROOT = Path(__file__).resolve().parents[2]
-DATA_ROOT = ROOT / "data"
-HTML_TEMPLATE_ROOT = Path(__file__).resolve().parent / "templates"
+PACKAGE_ROOT = Path(__file__).resolve().parent
+DATA_ROOT = PACKAGE_ROOT / "data"
+HTML_TEMPLATE_ROOT = PACKAGE_ROOT / "templates"
 CSS_TEMPLATE_PATH = HTML_TEMPLATE_ROOT / "index.css"
 INDEX_PATH = ROOT / "index.html"
 INDEX_CSS_PATH = ROOT / "index.css"

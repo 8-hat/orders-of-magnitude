@@ -13,7 +13,8 @@
 
 ## Update index files
 
-1. Edit `data/lengths.yml` (and any other dataset files).
+1. Edit `src/orders_of_magnitude/data/lengths.yml` (and any other dataset
+   files).
 2. Edit `src/orders_of_magnitude/templates/index.html` for layout and
    `src/orders_of_magnitude/templates/index.css` for styles.
 3. Run `nox -s render_index_html`.

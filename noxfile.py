@@ -55,7 +55,7 @@ def tests(session: nox.Session) -> None:
 @nox.session(default=False)
 def render_index_html(session: nox.Session) -> None:
     """
-    Update index.html and index.css from data files and package templates.
+    Update index.html and index.css from package data files and templates.
     """
     session.install("-e.")
     session.run(
