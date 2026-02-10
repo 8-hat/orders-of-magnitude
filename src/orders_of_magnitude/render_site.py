@@ -174,7 +174,7 @@ def _render_observable_row(observable: Observable, indent: str) -> str:
     """Render one observable as an HTML table row."""
     mantissa, exponent = _scientific_parts(observable.value)
     unit = html.escape(observable.unit)
-    value = f"{mantissa} x 10<sup>{exponent}</sup> {unit}"
+    value = f"{mantissa} &times; 10<sup>{exponent}</sup> {unit}"
     return "\n".join(
         (
             f"{indent}<tr>",
