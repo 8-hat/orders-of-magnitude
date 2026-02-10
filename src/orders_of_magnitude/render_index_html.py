@@ -13,9 +13,9 @@ import yaml
 from pint import errors as pint_errors
 
 ROOT = Path(__file__).resolve().parents[2]
-PACKAGE_ROOT = Path(__file__).resolve().parent
 DATA_ROOT = ROOT / "data"
-TEMPLATE_ROOT = PACKAGE_ROOT / "templates"
+HTML_TEMPLATE_ROOT = Path(__file__).resolve().parent / "templates"
+CSS_TEMPLATE_PATH = HTML_TEMPLATE_ROOT / "index.css"
 INDEX_PATH = ROOT / "index.html"
 INDEX_CSS_PATH = ROOT / "index.css"
 TABLES_PLACEHOLDER = "{{ tables }}"
@@ -211,8 +211,8 @@ def _render_index_css(index_css_path: Path, template_css_path: Path) -> None:
 
 def main() -> None:
     datasets = [_load_dataset(path, target) for path, target in DATASET_SOURCES]
-    _render_index_html(INDEX_PATH, TEMPLATE_ROOT / "index.html", datasets)
-    _render_index_css(INDEX_CSS_PATH, TEMPLATE_ROOT / "index.css")
+    _render_index_html(INDEX_PATH, HTML_TEMPLATE_ROOT / "index.html", datasets)
+    _render_index_css(INDEX_CSS_PATH, CSS_TEMPLATE_PATH)
 
 
 if __name__ == "__main__":
