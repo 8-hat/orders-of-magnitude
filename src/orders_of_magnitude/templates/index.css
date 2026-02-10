@@ -24,4 +24,10 @@ th {
 
 .math {
   font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", serif;
+  white-space: nowrap;
+}
+
+th:nth-child(3),
+td:nth-child(3) {
+  min-width: 12ch;
 }
