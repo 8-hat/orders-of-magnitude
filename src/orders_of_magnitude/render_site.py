@@ -25,8 +25,20 @@ DEFAULT_HTML_FILENAME = "orders-of-magnitude.html"
 DEFAULT_CSS_FILENAME = "orders-of-magnitude.css"
 TABLES_PLACEHOLDER = "{{ tables }}"
 CSS_HREF_PLACEHOLDER = "{{ css_href }}"
-TABLE_HEADERS: tuple[str, ...] = ("Order of magnitude", "Name", "Value", "Fields")
-OBSERVABLE_REQUIRED_FIELDS: tuple[str, ...] = ("name", "value", "unit", "fields")
+TABLE_HEADERS: tuple[str, ...] = (
+    "Order of magnitude",
+    "Name",
+    "Value",
+    "Fields",
+    "Source",
+)
+OBSERVABLE_REQUIRED_FIELDS: tuple[str, ...] = (
+    "name",
+    "value",
+    "unit",
+    "fields",
+    "source",
+)
 DATASET_SOURCES: tuple[tuple[Path, str], ...] = (
     (DATA_ROOT / "lengths.yml", "m"),
     (DATA_ROOT / "times.yml", "s"),
@@ -41,6 +53,7 @@ class Observable:
 
     name: str
     fields: str
+    source: str
     value: float
     unit: str
 
@@ -102,12 +115,17 @@ def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
     fields = _ensure_string(
         observable["fields"], f"Observable {index} field 'fields' must be a string."
     )
+    source = _ensure_string(
+        observable["source"], f"Observable {index} field 'source' must be a string."
+    )
     value = _parse_number(
         observable["value"], f"Observable {index} field 'value' must be a number."
     )
 
     value = _convert_to_target_unit(value, unit, target_unit, index)
-    return Observable(name=name, fields=fields, value=value, unit=target_unit)
+    return Observable(
+        name=name, fields=fields, source=source, value=value, unit=target_unit
+    )
 
 
 def _convert_to_target_unit(
@@ -174,7 +192,7 @@ def _load_dataset(path: Path, target_unit: str) -> Dataset:
     return Dataset(title=title, observables=observables)
 
 
-def _render_observable_row(observable: Observable, indent: str) -> str:
+def _render_observable_row(observable: Observable, indent: str, source_ref: int) -> str:
     """Render one observable as an HTML table row."""
     mantissa, exponent = _scientific_parts(observable.value)
     unit = html.escape(observable.unit)
@@ -186,16 +204,31 @@ def _render_observable_row(observable: Observable, indent: str) -> str:
             f"{indent}  <td>{html.escape(observable.name)}</td>",
             f'{indent}  <td class="math">{value}</td>',
             f"{indent}  <td>{html.escape(observable.fields)}</td>",
+            f"{indent}  <td>[{source_ref}]</td>",
             f"{indent}</tr>",
         )
     )
 
 
-def _render_dataset_section(dataset: Dataset, indent: str) -> str:
+def _source_references(datasets: list[Dataset]) -> dict[str, int]:
+    """Return source text -> reference number, preserving first-seen order."""
+    references: dict[str, int] = {}
+    for dataset in datasets:
+        for observable in dataset.observables:
+            if observable.source not in references:
+                references[observable.source] = len(references) + 1
+    return references
+
+
+def _render_dataset_section(
+    dataset: Dataset, indent: str, source_references: dict[str, int]
+) -> str:
     """Render one dataset as an HTML ``section`` containing a table."""
     row_indent = f"{indent}      "
     rows = "\n".join(
-        _render_observable_row(observable, row_indent)
+        _render_observable_row(
+            observable, row_indent, source_references[observable.source]
+        )
         for observable in dataset.observables
     )
     headers = "\n".join(f"{indent}        <th>{label}</th>" for label in TABLE_HEADERS)
@@ -213,6 +246,24 @@ def _render_dataset_section(dataset: Dataset, indent: str) -> str:
             rows,
             f"{indent}    </tbody>",
             f"{indent}  </table>",
+            f"{indent}</section>",
+        )
+    )
+
+
+def _render_sources_section(source_references: dict[str, int], indent: str) -> str:
+    """Render deduplicated source references displayed after the dataset tables."""
+    items = "\n".join(
+        f"{indent}    <li>[{reference}] {html.escape(source)}</li>"
+        for source, reference in source_references.items()
+    )
+    return "\n".join(
+        (
+            f'{indent}<section class="sources">',
+            f"{indent}  <h2>Sources</h2>",
+            f"{indent}  <ul>",
+            items,
+            f"{indent}  </ul>",
             f"{indent}</section>",
         )
     )
@@ -238,14 +289,17 @@ def _write_html_page(
         raise ValueError(message)
 
     indent = placeholder_line.split(TABLES_PLACEHOLDER, 1)[0]
+    references = _source_references(datasets)
     tables_html = "\n\n".join(
-        _render_dataset_section(dataset, indent) for dataset in datasets
+        _render_dataset_section(dataset, indent, references) for dataset in datasets
     )
+    sources_html = _render_sources_section(references, indent)
+    body_html = f"{tables_html}\n\n{sources_html}"
     rendered_template = template_text.replace(
         CSS_HREF_PLACEHOLDER, html.escape(stylesheet_href, quote=True)
     )
     html_output_path.write_text(
-        rendered_template.replace(placeholder_line, tables_html, 1), encoding="utf-8"
+        rendered_template.replace(placeholder_line, body_html, 1), encoding="utf-8"
     )
 
 

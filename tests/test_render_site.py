@@ -44,6 +44,14 @@ def test_main_writes_default_files_in_current_directory(
     assert output_css.exists()
     html_text = output_html.read_text(encoding="utf-8")
     assert f'href="{render_site.DEFAULT_CSS_FILENAME}"' in html_text
+    assert "<th>Source</th>" in html_text
+    assert html_text.index("<th>Fields</th>") < html_text.index("<th>Source</th>")
+    assert "<td>[1]</td>" in html_text
+    assert "<td>[2]</td>" in html_text
+    assert "<h2>Sources</h2>" in html_text
+    assert "<li>[1] Planetary Fact Sheet</li>" in html_text
+    assert "<li>[2] NASA Facts</li>" in html_text
+    assert html_text.count("Planetary Fact Sheet") == 1
 
 
 def test_main_respects_custom_output_paths(tmp_path: Path) -> None:
@@ -90,3 +98,60 @@ def test_load_dataset_requires_fields_key(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match=r"Observable 0 missing 'fields'\."):
         render_site._load_dataset(dataset_path, "m")
+
+
+def test_load_dataset_requires_source_key(tmp_path: Path) -> None:
+    dataset_path = tmp_path / "dataset.yml"
+    dataset_path.write_text(
+        "title: Demo\n"
+        "observables:\n"
+        "  - name: Example\n"
+        "    value: 1\n"
+        "    unit: m\n"
+        "    fields: test\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"Observable 0 missing 'source'\."):
+        render_site._load_dataset(dataset_path, "m")
+
+
+def test_source_references_deduplicate_by_text() -> None:
+    datasets = [
+        render_site.Dataset(
+            title="A",
+            observables=[
+                render_site.Observable(
+                    name="one",
+                    fields="f",
+                    source="Shared source",
+                    value=1.0,
+                    unit="m",
+                ),
+                render_site.Observable(
+                    name="two",
+                    fields="f",
+                    source="Shared source",
+                    value=2.0,
+                    unit="m",
+                ),
+            ],
+        ),
+        render_site.Dataset(
+            title="B",
+            observables=[
+                render_site.Observable(
+                    name="three",
+                    fields="f",
+                    source="Other source",
+                    value=3.0,
+                    unit="m",
+                ),
+            ],
+        ),
+    ]
+
+    assert render_site._source_references(datasets) == {
+        "Shared source": 1,
+        "Other source": 2,
+    }
