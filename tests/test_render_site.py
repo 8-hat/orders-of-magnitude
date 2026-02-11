@@ -42,9 +42,8 @@ def test_main_writes_default_files_in_current_directory(
     output_css = tmp_path / render_site.DEFAULT_CSS_FILENAME
     assert output_html.exists()
     assert output_css.exists()
-    assert f'href="{render_site.DEFAULT_CSS_FILENAME}"' in output_html.read_text(
-        encoding="utf-8"
-    )
+    html_text = output_html.read_text(encoding="utf-8")
+    assert f'href="{render_site.DEFAULT_CSS_FILENAME}"' in html_text
 
 
 def test_main_respects_custom_output_paths(tmp_path: Path) -> None:
@@ -80,3 +79,14 @@ def test_main_derives_css_href_from_custom_css_path(tmp_path: Path) -> None:
 def test_scientific_parts_uses_logscale_format() -> None:
     assert render_site._scientific_parts(3.48e6) == ("0.35", 7)
     assert render_site._scientific_parts(498) == ("0.50", 3)
+
+
+def test_load_dataset_requires_fields_key(tmp_path: Path) -> None:
+    dataset_path = tmp_path / "dataset.yml"
+    dataset_path.write_text(
+        "title: Demo\nobservables:\n  - name: Example\n    value: 1\n    unit: m\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"Observable 0 missing 'fields'\."):
+        render_site._load_dataset(dataset_path, "m")

@@ -28,18 +28,24 @@ th {
   white-space: nowrap;
 }
 
-th:nth-child(3),
-td:nth-child(3) {
-  width: 26%;
-}
-
 th:nth-child(1),
 td:nth-child(1) {
-  width: 24%;
+  width: 20%;
 }
 
 th:nth-child(2),
 td:nth-child(2) {
-  width: 50%;
+  width: 36%;
+  overflow-wrap: anywhere;
+}
+
+th:nth-child(3),
+td:nth-child(3) {
+  width: 24%;
+}
+
+th:nth-child(4),
+td:nth-child(4) {
+  width: 20%;
   overflow-wrap: anywhere;
 }

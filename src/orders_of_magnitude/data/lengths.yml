@@ -3,20 +3,20 @@ observables:
   - name: Pluto diameter
     value: 2376
     unit: km
-    field: astronomy
+    fields: astronomy
     source: Planetary Fact Sheet
   - name: Moon diameter
     value: 3475
     unit: km
-    field: astronomy
+    fields: astronomy
     source: Planetary Fact Sheet
   - name: Earth diameter
     value: 12756
     unit: km
-    field: astronomy
+    fields: astronomy
     source: Planetary Fact Sheet
   - name: Jupiter diameter
     value: 142984
     unit: km
-    field: astronomy
+    fields: astronomy
     source: Planetary Fact Sheet

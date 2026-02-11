@@ -3,5 +3,5 @@ observables:
   - name: Time taken by light to travel from Sun to Earth
     value: 8.3
     unit: min
-    field: astronomy
+    fields: astronomy
     source: NASA Facts

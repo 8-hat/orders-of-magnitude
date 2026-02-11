@@ -25,8 +25,8 @@ DEFAULT_HTML_FILENAME = "orders-of-magnitude.html"
 DEFAULT_CSS_FILENAME = "orders-of-magnitude.css"
 TABLES_PLACEHOLDER = "{{ tables }}"
 CSS_HREF_PLACEHOLDER = "{{ css_href }}"
-TABLE_HEADERS: tuple[str, ...] = ("Order of magnitude", "Name", "Value")
-OBSERVABLE_FIELDS: tuple[str, ...] = ("name", "value", "unit")
+TABLE_HEADERS: tuple[str, ...] = ("Order of magnitude", "Name", "Value", "Fields")
+OBSERVABLE_REQUIRED_FIELDS: tuple[str, ...] = ("name", "value", "unit", "fields")
 DATASET_SOURCES: tuple[tuple[Path, str], ...] = (
     (DATA_ROOT / "lengths.yml", "m"),
     (DATA_ROOT / "times.yml", "s"),
@@ -40,6 +40,7 @@ class Observable:
     """Single observable entry normalized to the dataset target unit."""
 
     name: str
+    fields: str
     value: float
     unit: str
 
@@ -87,7 +88,7 @@ def _parse_number(value: object, message: str) -> float:
 def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
     """Parse one observable mapping, validate required fields, and normalize units."""
     observable = _ensure_mapping(item, f"Observable {index} must be a mapping.")
-    for field in OBSERVABLE_FIELDS:
+    for field in OBSERVABLE_REQUIRED_FIELDS:
         if field not in observable:
             message = f"Observable {index} missing '{field}'."
             raise ValueError(message)
@@ -98,12 +99,15 @@ def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
     unit = _ensure_string(
         observable["unit"], f"Observable {index} field 'unit' must be a string."
     )
+    fields = _ensure_string(
+        observable["fields"], f"Observable {index} field 'fields' must be a string."
+    )
     value = _parse_number(
         observable["value"], f"Observable {index} field 'value' must be a number."
     )
 
     value = _convert_to_target_unit(value, unit, target_unit, index)
-    return Observable(name=name, value=value, unit=target_unit)
+    return Observable(name=name, fields=fields, value=value, unit=target_unit)
 
 
 def _convert_to_target_unit(
@@ -181,6 +185,7 @@ def _render_observable_row(observable: Observable, indent: str) -> str:
             f'{indent}  <td class="math">10<sup>{exponent}</sup> {unit}</td>',
             f"{indent}  <td>{html.escape(observable.name)}</td>",
             f'{indent}  <td class="math">{value}</td>',
+            f"{indent}  <td>{html.escape(observable.fields)}</td>",
             f"{indent}</tr>",
         )
     )
