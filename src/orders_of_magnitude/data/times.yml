@@ -1,7 +1,8 @@
 title: Times
 observables:
-  - name: Time taken by light to travel from Sun to Earth
-    value: 8.3
-    unit: min
+  - name: Tropical year (equinox to equinox, 2020)
+    value: 31556925.1
+    unit: s
     fields: astronomy
-    source: NASA Facts
+    source:
+      S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)

@@ -1,22 +1,8 @@
 title: Lengths
 observables:
-  - name: Pluto diameter
-    value: 2376
-    unit: km
+  - name: Light year
+    value: 0.946073e16
+    unit: m
     fields: astronomy
-    source: Planetary Fact Sheet
-  - name: Moon diameter
-    value: 3475
-    unit: km
-    fields: astronomy
-    source: Planetary Fact Sheet
-  - name: Earth diameter
-    value: 12756
-    unit: km
-    fields: astronomy
-    source: Planetary Fact Sheet
-  - name: Jupiter diameter
-    value: 142984
-    unit: km
-    fields: astronomy
-    source: Planetary Fact Sheet
+    source:
+      S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)
