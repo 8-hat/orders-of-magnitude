@@ -57,7 +57,7 @@ def render_site(session: nox.Session) -> None:
     """
     Update index.html and index.css from package data files and templates.
     """
-    session.install("-e.")
+    session.install("-e.", "prek")
     session.run(
         "python",
         "-m",
@@ -68,6 +68,16 @@ def render_site(session: nox.Session) -> None:
         "index.css",
         *session.posargs,
     )
+    session.run(
+        "prek",
+        "run",
+        "prettier",
+        "--files",
+        "index.html",
+        "index.css",
+        success_codes=[0, 1],
+    )
+    session.run("prek", "run", "prettier", "--files", "index.html", "index.css")
 
 
 @nox.session(reuse_venv=True, default=False)
