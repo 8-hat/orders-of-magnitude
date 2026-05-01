@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-from html.parser import HTMLParser
 from typing import TYPE_CHECKING
 
 import pytest
@@ -10,29 +8,6 @@ from orders_of_magnitude import render_site
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-class HtmlTokens(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.tokens: list[tuple[object, ...]] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        self.tokens.append(("start", tag, tuple(attrs)))
-
-    def handle_endtag(self, tag: str) -> None:
-        self.tokens.append(("end", tag))
-
-    def handle_data(self, data: str) -> None:
-        normalized_data = re.sub(r"\s+", " ", data).strip()
-        if normalized_data:
-            self.tokens.append(("data", normalized_data))
-
-
-def _html_tokens(text: str) -> list[tuple[object, ...]]:
-    parser = HtmlTokens()
-    parser.feed(text)
-    return parser.tokens
 
 
 def test_write_css_file_copies_template(tmp_path: Path) -> None:
@@ -202,7 +177,27 @@ def test_source_references_deduplicate_by_text() -> None:
     }
 
 
-def test_generated_site_matches_committed_site_ignoring_html_whitespace(
+def test_render_source_item_keeps_short_references_inline() -> None:
+    assert (
+        render_site._render_source_item("Short source", "        ", 1)
+        == "        <li>[1] Short source</li>"
+    )
+
+
+def test_render_source_item_wraps_long_references_like_prettier() -> None:
+    source = "S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)"
+    expected = (
+        "        <li>\n"
+        "          [1] S. Navas et al. (Particle Data Group), Phys. Rev. "
+        "D 110, 030001\n"
+        "          (2024)\n"
+        "        </li>"
+    )
+
+    assert render_site._render_source_item(source, "        ", 1) == expected
+
+
+def test_generated_site_matches_committed_site(
     tmp_path: Path,
 ) -> None:
     output_html = tmp_path / "index.html"
@@ -212,8 +207,8 @@ def test_generated_site_matches_committed_site_ignoring_html_whitespace(
 
     committed_html = render_site.PACKAGE_ROOT.parent.parent / "index.html"
     committed_css = render_site.PACKAGE_ROOT.parent.parent / "index.css"
-    assert _html_tokens(output_html.read_text(encoding="utf-8")) == _html_tokens(
-        committed_html.read_text(encoding="utf-8")
+    assert output_html.read_text(encoding="utf-8") == committed_html.read_text(
+        encoding="utf-8"
     )
     assert output_css.read_text(encoding="utf-8") == committed_css.read_text(
         encoding="utf-8"

@@ -7,6 +7,7 @@ import html
 import logging
 import math
 import os
+import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,7 @@ DEFAULT_HTML_FILENAME = "orders-of-magnitude.html"
 DEFAULT_CSS_FILENAME = "orders-of-magnitude.css"
 TABLES_PLACEHOLDER = "{{ tables }}"
 CSS_HREF_PLACEHOLDER = "{{ css_href }}"
+HTML_PRINT_WIDTH = 80
 TABLE_HEADERS: tuple[str, ...] = (
     "Order of magnitude",
     "Name",
@@ -253,8 +255,9 @@ def _render_dataset_section(
 
 def _render_sources_section(source_references: dict[str, int], indent: str) -> str:
     """Render deduplicated source references displayed after the dataset tables."""
+    item_indent = f"{indent}    "
     items = "\n".join(
-        f"{indent}    <li>[{reference}] {html.escape(source)}</li>"
+        _render_source_item(source, item_indent, reference)
         for source, reference in source_references.items()
     )
     return "\n".join(
@@ -265,6 +268,27 @@ def _render_sources_section(source_references: dict[str, int], indent: str) -> s
             items,
             f"{indent}  </ul>",
             f"{indent}</section>",
+        )
+    )
+
+
+def _render_source_item(source: str, indent: str, reference: int) -> str:
+    """Render one source reference using Prettier-compatible HTML wrapping."""
+    text = f"[{reference}] {html.escape(source)}"
+    inline_item = f"{indent}<li>{text}</li>"
+    if len(inline_item) <= HTML_PRINT_WIDTH:
+        return inline_item
+
+    text_indent = f"{indent}  "
+    wrapped_text = textwrap.wrap(
+        text,
+        width=HTML_PRINT_WIDTH - len(text_indent),
+    )
+    return "\n".join(
+        (
+            f"{indent}<li>",
+            *(f"{text_indent}{line}" for line in wrapped_text),
+            f"{indent}</li>",
         )
     )
 

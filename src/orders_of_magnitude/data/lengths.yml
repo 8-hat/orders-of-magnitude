@@ -6,3 +6,39 @@ observables:
     fields: astronomy
     source:
       S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)
+  - name: Nominal Solar equatorial radius
+    value: 6.957e8
+    unit: m
+    fields: astronomy
+    source:
+      S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)
+  - name: Nominal Earth equatorial radius
+    value: 6.3781e6
+    unit: m
+    fields: astronomy
+    source:
+      S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)
+  - name: Planck length
+    value: 1.61625518e-35
+    unit: m
+    fields: fundamental physics
+    source:
+      S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)
+  - name: Astronomical unit
+    value: 149597870700
+    unit: m
+    fields: astronomy
+    source:
+      S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)
+  - name: Parsec
+    value: 3.08567758149e16
+    unit: m
+    fields: astronomy
+    source:
+      S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)
+  - name: Solar distance from Galactic center
+    value: 8.275
+    unit: kpc
+    fields: astronomy
+    source:
+      S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)
