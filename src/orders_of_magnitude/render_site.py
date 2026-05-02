@@ -1,4 +1,4 @@
-"""Render site HTML and CSS from dataset YAML files and templates."""
+"""Render site HTML and CSS from datasets and templates."""
 
 from __future__ import annotations
 
@@ -8,17 +8,13 @@ import logging
 import math
 import os
 import textwrap
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
-import pint
-import yaml
 from logscale import order_of_magnitude
-from pint import errors as pint_errors
+
+from orders_of_magnitude import datasets
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
-DATA_ROOT = PACKAGE_ROOT / "data"
 HTML_TEMPLATE_ROOT = PACKAGE_ROOT / "templates"
 HTML_TEMPLATE_PATH = HTML_TEMPLATE_ROOT / "index.html"
 CSS_TEMPLATE_PATH = HTML_TEMPLATE_ROOT / "index.css"
@@ -34,38 +30,7 @@ TABLE_HEADERS: tuple[str, ...] = (
     "Fields",
     "Source",
 )
-OBSERVABLE_REQUIRED_FIELDS: tuple[str, ...] = (
-    "name",
-    "value",
-    "unit",
-    "fields",
-    "source",
-)
-DATASET_SOURCES: tuple[tuple[Path, str], ...] = (
-    (DATA_ROOT / "lengths.yml", "m"),
-    (DATA_ROOT / "times.yml", "s"),
-)
-UNIT_REGISTRY: pint.UnitRegistry[Any] = pint.UnitRegistry()
 LOGGER = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class Observable:
-    """Single observable entry normalized to the dataset target unit."""
-
-    name: str
-    fields: str
-    source: str
-    value: float
-    unit: str
-
-
-@dataclass(frozen=True)
-class Dataset:
-    """Collection of observables rendered as one section in the index page."""
-
-    title: str
-    observables: list[Observable]
 
 
 def _read_text(path: Path, label: str) -> str:
@@ -74,82 +39,6 @@ def _read_text(path: Path, label: str) -> str:
         message = f"Missing {label} at {path}."
         raise FileNotFoundError(message)
     return path.read_text(encoding="utf-8")
-
-
-def _ensure_mapping(item: object, message: str) -> dict[str, object]:
-    """Validate that ``item`` is a mapping and return it."""
-    if isinstance(item, dict):
-        return item
-    raise TypeError(message)
-
-
-def _ensure_string(value: object, message: str) -> str:
-    """Validate that ``value`` is a string and return it."""
-    if isinstance(value, str):
-        return value
-    raise TypeError(message)
-
-
-def _parse_number(value: object, message: str) -> float:
-    """Convert a numeric-like value to ``float`` while rejecting booleans."""
-    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
-        raise TypeError(message)
-    try:
-        return float(value)
-    except ValueError as exc:
-        raise TypeError(message) from exc
-
-
-def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
-    """Parse one observable mapping, validate required fields, and normalize units."""
-    observable = _ensure_mapping(item, f"Observable {index} must be a mapping.")
-    for field in OBSERVABLE_REQUIRED_FIELDS:
-        if field not in observable:
-            message = f"Observable {index} missing '{field}'."
-            raise ValueError(message)
-
-    name = _ensure_string(
-        observable["name"], f"Observable {index} field 'name' must be a string."
-    )
-    unit = _ensure_string(
-        observable["unit"], f"Observable {index} field 'unit' must be a string."
-    )
-    fields = _ensure_string(
-        observable["fields"], f"Observable {index} field 'fields' must be a string."
-    )
-    source = _ensure_string(
-        observable["source"], f"Observable {index} field 'source' must be a string."
-    )
-    value = _parse_number(
-        observable["value"], f"Observable {index} field 'value' must be a number."
-    )
-
-    value = _convert_to_target_unit(value, unit, target_unit, index)
-    return Observable(
-        name=name, fields=fields, source=source, value=value, unit=target_unit
-    )
-
-
-def _convert_to_target_unit(
-    value: float, unit: str, target_unit: str, index: int
-) -> float:
-    """Convert ``value`` from ``unit`` to ``target_unit`` and return a ``float``."""
-    try:
-        quantity = value * UNIT_REGISTRY(unit)
-    except pint_errors.UndefinedUnitError as exc:
-        message = f"Observable {index} field 'unit' has unsupported unit '{unit}'."
-        raise ValueError(message) from exc
-
-    try:
-        magnitude = quantity.to(target_unit).magnitude
-    except pint_errors.DimensionalityError as exc:
-        message = (
-            f"Observable {index} field 'unit' ('{unit}') cannot convert to "
-            f"{target_unit}."
-        )
-        raise ValueError(message) from exc
-
-    return float(magnitude)
 
 
 def _scientific_parts(value: float) -> tuple[str, int]:
@@ -176,25 +65,9 @@ def _scientific_parts(value: float) -> tuple[str, int]:
     return mantissa, exponent
 
 
-def _load_dataset(path: Path, target_unit: str) -> Dataset:
-    """Load and validate a dataset YAML file, converting all values to one unit."""
-    raw = _ensure_mapping(
-        yaml.safe_load(_read_text(path, "YAML file")),
-        "Top-level YAML must be a mapping with an 'observables' key.",
-    )
-    title = _ensure_string(raw.get("title"), "YAML 'title' must be a string.")
-    items = raw.get("observables")
-    if not isinstance(items, list):
-        message = "YAML 'observables' must be a list."
-        raise TypeError(message)
-
-    observables = [
-        _parse_observable(item, index, target_unit) for index, item in enumerate(items)
-    ]
-    return Dataset(title=title, observables=observables)
-
-
-def _render_observable_row(observable: Observable, indent: str, source_ref: int) -> str:
+def _render_observable_row(
+    observable: datasets.Observable, indent: str, source_ref: int
+) -> str:
     """Render one observable as an HTML table row."""
     mantissa, exponent = _scientific_parts(observable.value)
     unit = html.escape(observable.unit)
@@ -212,10 +85,10 @@ def _render_observable_row(observable: Observable, indent: str, source_ref: int)
     )
 
 
-def _source_references(datasets: list[Dataset]) -> dict[str, int]:
+def _source_references(loaded_datasets: list[datasets.Dataset]) -> dict[str, int]:
     """Return source text -> reference number, preserving first-seen order."""
     references: dict[str, int] = {}
-    for dataset in datasets:
+    for dataset in loaded_datasets:
         for observable in dataset.observables:
             if observable.source not in references:
                 references[observable.source] = len(references) + 1
@@ -223,7 +96,7 @@ def _source_references(datasets: list[Dataset]) -> dict[str, int]:
 
 
 def _render_dataset_section(
-    dataset: Dataset, indent: str, source_references: dict[str, int]
+    dataset: datasets.Dataset, indent: str, source_references: dict[str, int]
 ) -> str:
     """Render one dataset as an HTML ``section`` containing a table."""
     row_indent = f"{indent}      "
@@ -296,7 +169,7 @@ def _render_source_item(source: str, indent: str, reference: int) -> str:
 def _write_html_page(
     html_output_path: Path,
     html_template_path: Path,
-    datasets: list[Dataset],
+    loaded_datasets: list[datasets.Dataset],
     stylesheet_href: str,
 ) -> None:
     """Fill the HTML template with dataset tables and write the output page."""
@@ -313,9 +186,10 @@ def _write_html_page(
         raise ValueError(message)
 
     indent = placeholder_line.split(TABLES_PLACEHOLDER, 1)[0]
-    references = _source_references(datasets)
+    references = _source_references(loaded_datasets)
     tables_html = "\n\n".join(
-        _render_dataset_section(dataset, indent, references) for dataset in datasets
+        _render_dataset_section(dataset, indent, references)
+        for dataset in loaded_datasets
     )
     sources_html = _render_sources_section(references, indent)
     body_html = f"{tables_html}\n\n{sources_html}"
@@ -332,11 +206,6 @@ def _write_css_file(css_output_path: Path, css_template_path: Path) -> None:
     css_output_path.write_text(
         _read_text(css_template_path, "CSS template"), encoding="utf-8"
     )
-
-
-def _load_datasets() -> list[Dataset]:
-    """Load every configured dataset source."""
-    return [_load_dataset(path, target) for path, target in DATASET_SOURCES]
 
 
 def _compute_stylesheet_href(html_path: Path, css_path: Path) -> str:
@@ -388,11 +257,11 @@ def render_site(html_output_path: Path, css_output_path: Path) -> None:
     html_action = _write_action(html_output_path)
     css_action = _write_action(css_output_path)
     stylesheet_href = _compute_stylesheet_href(html_output_path, css_output_path)
-    datasets = _load_datasets()
+    loaded_datasets = datasets.load_datasets()
     _write_html_page(
         html_output_path,
         HTML_TEMPLATE_PATH,
-        datasets,
+        loaded_datasets,
         stylesheet_href=stylesheet_href,
     )
     _write_css_file(css_output_path, CSS_TEMPLATE_PATH)

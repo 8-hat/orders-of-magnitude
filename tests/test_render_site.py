@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from orders_of_magnitude import render_site
+from orders_of_magnitude import datasets, render_site
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -36,20 +36,20 @@ def test_main_writes_default_files_in_current_directory(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
-        render_site,
-        "_load_datasets",
+        datasets,
+        "load_datasets",
         lambda: [
-            render_site.Dataset(
+            datasets.Dataset(
                 title="Demo",
                 observables=[
-                    render_site.Observable(
+                    datasets.Observable(
                         name="First",
                         fields="field",
                         source="Shared source",
                         value=1.0,
                         unit="m",
                     ),
-                    render_site.Observable(
+                    datasets.Observable(
                         name="Second",
                         fields="field",
                         source="Shared source",
@@ -109,46 +109,19 @@ def test_scientific_parts_uses_logscale_format() -> None:
     assert render_site._scientific_parts(498) == ("0.50", 3)
 
 
-def test_load_dataset_requires_fields_key(tmp_path: Path) -> None:
-    dataset_path = tmp_path / "dataset.yml"
-    dataset_path.write_text(
-        "title: Demo\nobservables:\n  - name: Example\n    value: 1\n    unit: m\n",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError, match=r"Observable 0 missing 'fields'\."):
-        render_site._load_dataset(dataset_path, "m")
-
-
-def test_load_dataset_requires_source_key(tmp_path: Path) -> None:
-    dataset_path = tmp_path / "dataset.yml"
-    dataset_path.write_text(
-        "title: Demo\n"
-        "observables:\n"
-        "  - name: Example\n"
-        "    value: 1\n"
-        "    unit: m\n"
-        "    fields: test\n",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError, match=r"Observable 0 missing 'source'\."):
-        render_site._load_dataset(dataset_path, "m")
-
-
 def test_source_references_deduplicate_by_text() -> None:
-    datasets = [
-        render_site.Dataset(
+    loaded_datasets = [
+        datasets.Dataset(
             title="A",
             observables=[
-                render_site.Observable(
+                datasets.Observable(
                     name="one",
                     fields="f",
                     source="Shared source",
                     value=1.0,
                     unit="m",
                 ),
-                render_site.Observable(
+                datasets.Observable(
                     name="two",
                     fields="f",
                     source="Shared source",
@@ -157,10 +130,10 @@ def test_source_references_deduplicate_by_text() -> None:
                 ),
             ],
         ),
-        render_site.Dataset(
+        datasets.Dataset(
             title="B",
             observables=[
-                render_site.Observable(
+                datasets.Observable(
                     name="three",
                     fields="f",
                     source="Other source",
@@ -171,7 +144,7 @@ def test_source_references_deduplicate_by_text() -> None:
         ),
     ]
 
-    assert render_site._source_references(datasets) == {
+    assert render_site._source_references(loaded_datasets) == {
         "Shared source": 1,
         "Other source": 2,
     }
