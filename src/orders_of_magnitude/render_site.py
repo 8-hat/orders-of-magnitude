@@ -33,14 +33,6 @@ TABLE_HEADERS: tuple[str, ...] = (
 LOGGER = logging.getLogger(__name__)
 
 
-def _read_text(path: Path, label: str) -> str:
-    """Return UTF-8 text from ``path`` or raise if the file is missing."""
-    if not path.exists():
-        message = f"Missing {label} at {path}."
-        raise FileNotFoundError(message)
-    return path.read_text(encoding="utf-8")
-
-
 def _scientific_parts(value: float) -> tuple[str, int]:
     """Return mantissa and exponent parsed from ``logscale.order_of_magnitude``."""
     if not math.isfinite(value):
@@ -255,8 +247,8 @@ def render_site(html_output_path: Path, css_output_path: Path) -> None:
     css_action = _write_action(css_output_path)
     stylesheet_href = _compute_stylesheet_href(html_output_path, css_output_path)
     loaded_datasets = datasets.load_datasets()
-    html_template = _read_text(HTML_TEMPLATE_PATH, "HTML template")
-    css_template = _read_text(CSS_TEMPLATE_PATH, "CSS template")
+    html_template = HTML_TEMPLATE_PATH.read_text(encoding="utf-8")
+    css_template = CSS_TEMPLATE_PATH.read_text(encoding="utf-8")
 
     html_output_path.write_text(
         _render_html_page(html_template, loaded_datasets, stylesheet_href),

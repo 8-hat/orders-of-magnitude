@@ -38,14 +38,6 @@ class Dataset:
     observables: list[Observable]
 
 
-def _read_text(path: Path, label: str) -> str:
-    """Return UTF-8 text from ``path`` or raise if the file is missing."""
-    if not path.exists():
-        message = f"Missing {label} at {path}."
-        raise FileNotFoundError(message)
-    return path.read_text(encoding="utf-8")
-
-
 def _ensure_mapping(item: object, message: str) -> dict[str, object]:
     """Validate that ``item`` is a YAML mapping and return it."""
     if isinstance(item, dict):
@@ -128,7 +120,7 @@ def _convert_to_target_unit(
 def load_dataset(path: Path, target_unit: str) -> Dataset:
     """Load and validate a dataset YAML file, converting all values to one unit."""
     raw = _ensure_mapping(
-        yaml.safe_load(_read_text(path, "YAML file")),
+        yaml.safe_load(path.read_text(encoding="utf-8")),
         "Top-level YAML must be a mapping with an 'observables' key.",
     )
     title = raw.get("title")

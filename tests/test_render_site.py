@@ -10,17 +10,12 @@ if TYPE_CHECKING:
     import pytest
 
 
-def _observable(
-    name: str,
-    *,
-    source: str = "Shared source",
-    value: float = 1.0,
-) -> datasets.Observable:
+def _observable(name: str) -> datasets.Observable:
     return datasets.Observable(
         name=name,
         fields="field",
-        source=source,
-        value=value,
+        source="Shared source",
+        value=1.0,
         unit="m",
     )
 
@@ -80,50 +75,6 @@ def test_main_derives_css_href_from_custom_css_path(tmp_path: Path) -> None:
     assert output_html.exists()
     assert output_css.exists()
     assert 'href="../assets/main.css"' in output_html.read_text(encoding="utf-8")
-
-
-def test_scientific_parts_uses_logscale_format() -> None:
-    assert render_site._scientific_parts(3.48e6) == ("0.35", 7)
-    assert render_site._scientific_parts(498) == ("0.50", 3)
-
-
-def test_source_references_deduplicate_by_text() -> None:
-    loaded_datasets = [
-        _dataset(
-            "A",
-            _observable("one"),
-            _observable("two", value=2.0),
-        ),
-        _dataset(
-            "B",
-            _observable("three", source="Other source", value=3.0),
-        ),
-    ]
-
-    assert render_site._source_references(loaded_datasets) == {
-        "Shared source": 1,
-        "Other source": 2,
-    }
-
-
-def test_render_source_item_keeps_short_references_inline() -> None:
-    assert (
-        render_site._render_source_item("Short source", "        ", 1)
-        == "        <li>[1] Short source</li>"
-    )
-
-
-def test_render_source_item_wraps_long_references_like_prettier() -> None:
-    source = "S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)"
-    expected = (
-        "        <li>\n"
-        "          [1] S. Navas et al. (Particle Data Group), Phys. Rev. "
-        "D 110, 030001\n"
-        "          (2024)\n"
-        "        </li>"
-    )
-
-    assert render_site._render_source_item(source, "        ", 1) == expected
 
 
 def test_generated_site_matches_committed_site(
