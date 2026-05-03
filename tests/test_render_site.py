@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pytest
-
 from orders_of_magnitude import datasets, render_site
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import pytest
 
 
 def _observable(
@@ -27,27 +27,6 @@ def _observable(
 
 def _dataset(title: str, *observables: datasets.Observable) -> datasets.Dataset:
     return datasets.Dataset(title=title, observables=list(observables))
-
-
-def test_write_css_file_copies_template(tmp_path: Path) -> None:
-    template_css = tmp_path / "template.css"
-    output_css = tmp_path / "index.css"
-    expected_css = "body { color: red; }\n"
-    template_css.write_text(expected_css, encoding="utf-8")
-
-    render_site._write_css_file(output_css, template_css)
-
-    assert output_css.read_text(encoding="utf-8") == expected_css
-
-
-def test_write_css_file_requires_template(tmp_path: Path) -> None:
-    template_css = tmp_path / "missing.css"
-    output_css = tmp_path / "index.css"
-
-    with pytest.raises(
-        FileNotFoundError, match=rf"Missing CSS template at {template_css}\."
-    ):
-        render_site._write_css_file(output_css, template_css)
 
 
 def test_main_writes_default_files_in_current_directory(

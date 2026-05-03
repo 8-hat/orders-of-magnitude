@@ -11,6 +11,16 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _observable(name: str, value: object = 1, unit: str = "m") -> dict[str, object]:
+    return {
+        "name": name,
+        "value": value,
+        "unit": unit,
+        "fields": "test",
+        "source": "source",
+    }
+
+
 def _write_dataset(path: Path, observables: list[dict[str, object]]) -> None:
     path.write_text(
         yaml.safe_dump(
@@ -24,13 +34,7 @@ def _write_dataset(path: Path, observables: list[dict[str, object]]) -> None:
 @pytest.mark.parametrize("field", ["fields", "source"])
 def test_load_dataset_requires_observable_fields(tmp_path: Path, field: str) -> None:
     dataset_path = tmp_path / "dataset.yml"
-    observable: dict[str, object] = {
-        "name": "Example",
-        "value": 1,
-        "unit": "m",
-        "fields": "test",
-        "source": "source",
-    }
+    observable = _observable("Example")
     del observable[field]
     _write_dataset(dataset_path, [observable])
 
@@ -43,27 +47,9 @@ def test_load_dataset_sorts_observables_by_normalized_value(tmp_path: Path) -> N
     _write_dataset(
         dataset_path,
         [
-            {
-                "name": "larger",
-                "value": 100,
-                "unit": "cm",
-                "fields": "test",
-                "source": "source",
-            },
-            {
-                "name": "smaller",
-                "value": 1,
-                "unit": "mm",
-                "fields": "test",
-                "source": "source",
-            },
-            {
-                "name": "middle",
-                "value": 2,
-                "unit": "cm",
-                "fields": "test",
-                "source": "source",
-            },
+            _observable("larger", 100, "cm"),
+            _observable("smaller", 1, "mm"),
+            _observable("middle", 2, "cm"),
         ],
     )
 

@@ -12,13 +12,6 @@ from pint import errors as pint_errors
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DATA_ROOT = PACKAGE_ROOT / "data"
-OBSERVABLE_REQUIRED_FIELDS: tuple[str, ...] = (
-    "name",
-    "value",
-    "unit",
-    "fields",
-    "source",
-)
 DATASET_SOURCES: tuple[tuple[Path, str], ...] = (
     (DATA_ROOT / "lengths.yml", "m"),
     (DATA_ROOT / "times.yml", "s"),
@@ -79,39 +72,45 @@ def _parse_number(value: object, label: str) -> float:
         raise TypeError(message) from exc
 
 
-def _required_observable_fields(
-    observable: dict[str, object], index: int
-) -> dict[str, object]:
-    """Return required observable values or raise a field-specific error."""
-    fields = {}
-    for field in OBSERVABLE_REQUIRED_FIELDS:
-        if field not in observable:
-            message = f"Observable {index} missing '{field}'."
-            raise ValueError(message)
-        fields[field] = observable[field]
-    return fields
+def _observable_field(observable: dict[str, object], index: int, field: str) -> object:
+    """Return one required observable value or raise a field-specific error."""
+    if field in observable:
+        return observable[field]
+    message = f"Observable {index} missing '{field}'."
+    raise ValueError(message)
 
 
-def _field_label(index: int, field: str) -> str:
-    """Return the human-readable label used in validation errors."""
-    return f"Observable {index} field '{field}'"
+def _observable_string(observable: dict[str, object], index: int, field: str) -> str:
+    """Return one required observable field as a string."""
+    label = f"Observable {index} field '{field}'"
+    return _ensure_string(
+        _observable_field(observable, index, field),
+        label,
+    )
+
+
+def _observable_number(observable: dict[str, object], index: int, field: str) -> float:
+    """Return one required observable field as a float."""
+    label = f"Observable {index} field '{field}'"
+    return _parse_number(
+        _observable_field(observable, index, field),
+        label,
+    )
 
 
 def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
     """Parse one observable mapping, validate required fields, and normalize units."""
     observable = _ensure_mapping(item, f"Observable {index} must be a mapping.")
-    fields = _required_observable_fields(observable, index)
-
-    name = _ensure_string(fields["name"], _field_label(index, "name"))
-    unit = _ensure_string(fields["unit"], _field_label(index, "unit"))
-    observable_fields = _ensure_string(fields["fields"], _field_label(index, "fields"))
-    source = _ensure_string(fields["source"], _field_label(index, "source"))
-    value = _parse_number(fields["value"], _field_label(index, "value"))
+    name = _observable_string(observable, index, "name")
+    unit = _observable_string(observable, index, "unit")
+    fields = _observable_string(observable, index, "fields")
+    source = _observable_string(observable, index, "source")
+    value = _observable_number(observable, index, "value")
 
     value = _convert_to_target_unit(value, unit, target_unit, index)
     return Observable(
         name=name,
-        fields=observable_fields,
+        fields=fields,
         source=source,
         value=value,
         unit=target_unit,

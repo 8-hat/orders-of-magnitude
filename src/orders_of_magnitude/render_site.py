@@ -211,27 +211,6 @@ def _render_html_page(
     )
 
 
-def _write_html_page(
-    html_output_path: Path,
-    html_template_path: Path,
-    loaded_datasets: list[datasets.Dataset],
-    stylesheet_href: str,
-) -> None:
-    """Fill the HTML template with dataset tables and write the output page."""
-    template_text = _read_text(html_template_path, "HTML template")
-    html_output_path.write_text(
-        _render_html_page(template_text, loaded_datasets, stylesheet_href),
-        encoding="utf-8",
-    )
-
-
-def _write_css_file(css_output_path: Path, css_template_path: Path) -> None:
-    """Copy the CSS template content into the CSS output path."""
-    css_output_path.write_text(
-        _read_text(css_template_path, "CSS template"), encoding="utf-8"
-    )
-
-
 def _compute_stylesheet_href(html_path: Path, css_path: Path) -> str:
     """Build a browser-safe CSS href relative to the HTML file when possible."""
     resolved_html_path = html_path.resolve()
@@ -282,13 +261,14 @@ def render_site(html_output_path: Path, css_output_path: Path) -> None:
     css_action = _write_action(css_output_path)
     stylesheet_href = _compute_stylesheet_href(html_output_path, css_output_path)
     loaded_datasets = datasets.load_datasets()
-    _write_html_page(
-        html_output_path,
-        HTML_TEMPLATE_PATH,
-        loaded_datasets,
-        stylesheet_href=stylesheet_href,
+    html_template = _read_text(HTML_TEMPLATE_PATH, "HTML template")
+    css_template = _read_text(CSS_TEMPLATE_PATH, "CSS template")
+
+    html_output_path.write_text(
+        _render_html_page(html_template, loaded_datasets, stylesheet_href),
+        encoding="utf-8",
     )
-    _write_css_file(css_output_path, CSS_TEMPLATE_PATH)
+    css_output_path.write_text(css_template, encoding="utf-8")
     LOGGER.info("%s HTML file: %s", html_action.capitalize(), html_output_path)
     LOGGER.info("%s CSS file: %s", css_action.capitalize(), css_output_path)
 
