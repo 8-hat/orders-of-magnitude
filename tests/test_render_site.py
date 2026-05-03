@@ -136,9 +136,8 @@ def test_generated_site_matches_committed_site(
 
     committed_html = render_site.PACKAGE_ROOT.parent.parent / "index.html"
     committed_css = render_site.PACKAGE_ROOT.parent.parent / "index.css"
-    assert output_html.read_text(encoding="utf-8") == committed_html.read_text(
-        encoding="utf-8"
-    )
-    assert output_css.read_text(encoding="utf-8") == committed_css.read_text(
-        encoding="utf-8"
-    )
+    generated_files = [(output_html, committed_html), (output_css, committed_css)]
+    for generated, committed in generated_files:
+        assert generated.read_text(encoding="utf-8") == committed.read_text(
+            encoding="utf-8"
+        )

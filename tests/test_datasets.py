@@ -55,13 +55,10 @@ def test_load_dataset_sorts_observables_by_normalized_value(tmp_path: Path) -> N
 
     dataset = datasets.load_dataset(dataset_path, "m")
 
-    assert [observable.name for observable in dataset.observables] == [
-        "smaller",
-        "middle",
-        "larger",
-    ]
-    assert [observable.value for observable in dataset.observables] == [
-        0.001,
-        0.02,
-        1.0,
+    assert [
+        (observable.name, observable.value) for observable in dataset.observables
+    ] == [
+        ("smaller", 0.001),
+        ("middle", 0.02),
+        ("larger", 1.0),
     ]

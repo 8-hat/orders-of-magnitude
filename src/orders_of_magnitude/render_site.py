@@ -169,26 +169,6 @@ def _render_source_item(source: str, indent: str, reference: int) -> str:
     )
 
 
-def _placeholder_line(template_text: str, placeholder: str, label: str) -> str:
-    """Return the template line containing ``placeholder``."""
-    for line in template_text.splitlines():
-        if placeholder in line:
-            return line
-    message = f"Template missing {label} placeholder '{placeholder}'."
-    raise ValueError(message)
-
-
-def _render_body(loaded_datasets: list[datasets.Dataset], indent: str) -> str:
-    """Render all dataset sections followed by the deduplicated source list."""
-    references = _source_references(loaded_datasets)
-    sections = [
-        _render_dataset_section(dataset, indent, references)
-        for dataset in loaded_datasets
-    ]
-    sections.append(_render_sources_section(references, indent))
-    return "\n\n".join(sections)
-
-
 def _render_html_page(
     template_text: str,
     loaded_datasets: list[datasets.Dataset],
@@ -198,15 +178,29 @@ def _render_html_page(
     if CSS_HREF_PLACEHOLDER not in template_text:
         message = f"Template missing CSS href placeholder '{CSS_HREF_PLACEHOLDER}'."
         raise ValueError(message)
-    placeholder_line = _placeholder_line(template_text, TABLES_PLACEHOLDER, "tables")
+
+    placeholder_line = next(
+        (line for line in template_text.splitlines() if TABLES_PLACEHOLDER in line),
+        None,
+    )
+    if placeholder_line is None:
+        message = f"Template missing tables placeholder '{TABLES_PLACEHOLDER}'."
+        raise ValueError(message)
+
     indent = placeholder_line.split(TABLES_PLACEHOLDER, 1)[0]
+    references = _source_references(loaded_datasets)
+    sections = [
+        _render_dataset_section(dataset, indent, references)
+        for dataset in loaded_datasets
+    ]
+    sections.append(_render_sources_section(references, indent))
 
     template_text = template_text.replace(
         CSS_HREF_PLACEHOLDER, html.escape(stylesheet_href, quote=True)
     )
     return template_text.replace(
         placeholder_line,
-        _render_body(loaded_datasets, indent),
+        "\n\n".join(sections),
         1,
     )
 

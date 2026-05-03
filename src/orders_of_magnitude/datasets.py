@@ -53,25 +53,6 @@ def _ensure_mapping(item: object, message: str) -> dict[str, object]:
     raise TypeError(message)
 
 
-def _ensure_string(value: object, label: str) -> str:
-    """Validate that ``value`` is a string and return it."""
-    if isinstance(value, str):
-        return value
-    message = f"{label} must be a string."
-    raise TypeError(message)
-
-
-def _parse_number(value: object, label: str) -> float:
-    """Convert a numeric-like value to ``float`` while rejecting booleans."""
-    message = f"{label} must be a number."
-    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
-        raise TypeError(message)
-    try:
-        return float(value)
-    except ValueError as exc:
-        raise TypeError(message) from exc
-
-
 def _observable_field(observable: dict[str, object], index: int, field: str) -> object:
     """Return one required observable value or raise a field-specific error."""
     if field in observable:
@@ -82,20 +63,25 @@ def _observable_field(observable: dict[str, object], index: int, field: str) -> 
 
 def _observable_string(observable: dict[str, object], index: int, field: str) -> str:
     """Return one required observable field as a string."""
+    value = _observable_field(observable, index, field)
     label = f"Observable {index} field '{field}'"
-    return _ensure_string(
-        _observable_field(observable, index, field),
-        label,
-    )
+    if isinstance(value, str):
+        return value
+    message = f"{label} must be a string."
+    raise TypeError(message)
 
 
 def _observable_number(observable: dict[str, object], index: int, field: str) -> float:
     """Return one required observable field as a float."""
+    value = _observable_field(observable, index, field)
     label = f"Observable {index} field '{field}'"
-    return _parse_number(
-        _observable_field(observable, index, field),
-        label,
-    )
+    message = f"{label} must be a number."
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise TypeError(message)
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise TypeError(message) from exc
 
 
 def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
@@ -145,7 +131,11 @@ def load_dataset(path: Path, target_unit: str) -> Dataset:
         yaml.safe_load(_read_text(path, "YAML file")),
         "Top-level YAML must be a mapping with an 'observables' key.",
     )
-    title = _ensure_string(raw.get("title"), "YAML 'title'")
+    title = raw.get("title")
+    if not isinstance(title, str):
+        message = "YAML 'title' must be a string."
+        raise TypeError(message)
+
     items = raw.get("observables")
     if not isinstance(items, list):
         message = "YAML 'observables' must be a list."
