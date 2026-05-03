@@ -99,14 +99,17 @@ def _render_dataset_section(
     dataset: datasets.Dataset, indent: str, source_references: dict[str, int]
 ) -> str:
     """Render one dataset as an HTML ``section`` containing a table."""
+    header_indent = f"{indent}        "
     row_indent = f"{indent}      "
+    headers = "\n".join(f"{header_indent}<th>{label}</th>" for label in TABLE_HEADERS)
     rows = "\n".join(
         _render_observable_row(
-            observable, row_indent, source_references[observable.source]
+            observable,
+            row_indent,
+            source_references[observable.source],
         )
         for observable in dataset.observables
     )
-    headers = "\n".join(f"{indent}        <th>{label}</th>" for label in TABLE_HEADERS)
     return "\n".join(
         (
             f'{indent}<section class="dataset">',
@@ -166,6 +169,48 @@ def _render_source_item(source: str, indent: str, reference: int) -> str:
     )
 
 
+def _placeholder_line(template_text: str, placeholder: str, label: str) -> str:
+    """Return the template line containing ``placeholder``."""
+    for line in template_text.splitlines():
+        if placeholder in line:
+            return line
+    message = f"Template missing {label} placeholder '{placeholder}'."
+    raise ValueError(message)
+
+
+def _render_body(loaded_datasets: list[datasets.Dataset], indent: str) -> str:
+    """Render all dataset sections followed by the deduplicated source list."""
+    references = _source_references(loaded_datasets)
+    sections = [
+        _render_dataset_section(dataset, indent, references)
+        for dataset in loaded_datasets
+    ]
+    sections.append(_render_sources_section(references, indent))
+    return "\n\n".join(sections)
+
+
+def _render_html_page(
+    template_text: str,
+    loaded_datasets: list[datasets.Dataset],
+    stylesheet_href: str,
+) -> str:
+    """Fill the HTML template with the stylesheet href and rendered datasets."""
+    if CSS_HREF_PLACEHOLDER not in template_text:
+        message = f"Template missing CSS href placeholder '{CSS_HREF_PLACEHOLDER}'."
+        raise ValueError(message)
+    placeholder_line = _placeholder_line(template_text, TABLES_PLACEHOLDER, "tables")
+    indent = placeholder_line.split(TABLES_PLACEHOLDER, 1)[0]
+
+    template_text = template_text.replace(
+        CSS_HREF_PLACEHOLDER, html.escape(stylesheet_href, quote=True)
+    )
+    return template_text.replace(
+        placeholder_line,
+        _render_body(loaded_datasets, indent),
+        1,
+    )
+
+
 def _write_html_page(
     html_output_path: Path,
     html_template_path: Path,
@@ -174,30 +219,9 @@ def _write_html_page(
 ) -> None:
     """Fill the HTML template with dataset tables and write the output page."""
     template_text = _read_text(html_template_path, "HTML template")
-    if CSS_HREF_PLACEHOLDER not in template_text:
-        message = f"Template missing CSS href placeholder '{CSS_HREF_PLACEHOLDER}'."
-        raise ValueError(message)
-    placeholder_line = next(
-        (line for line in template_text.splitlines() if TABLES_PLACEHOLDER in line),
-        None,
-    )
-    if placeholder_line is None:
-        message = f"Template missing tables placeholder '{TABLES_PLACEHOLDER}'."
-        raise ValueError(message)
-
-    indent = placeholder_line.split(TABLES_PLACEHOLDER, 1)[0]
-    references = _source_references(loaded_datasets)
-    tables_html = "\n\n".join(
-        _render_dataset_section(dataset, indent, references)
-        for dataset in loaded_datasets
-    )
-    sources_html = _render_sources_section(references, indent)
-    body_html = f"{tables_html}\n\n{sources_html}"
-    rendered_template = template_text.replace(
-        CSS_HREF_PLACEHOLDER, html.escape(stylesheet_href, quote=True)
-    )
     html_output_path.write_text(
-        rendered_template.replace(placeholder_line, body_html, 1), encoding="utf-8"
+        _render_html_page(template_text, loaded_datasets, stylesheet_href),
+        encoding="utf-8",
     )
 
 

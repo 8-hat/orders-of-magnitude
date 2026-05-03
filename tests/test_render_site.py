@@ -10,6 +10,25 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _observable(
+    name: str,
+    *,
+    source: str = "Shared source",
+    value: float = 1.0,
+) -> datasets.Observable:
+    return datasets.Observable(
+        name=name,
+        fields="field",
+        source=source,
+        value=value,
+        unit="m",
+    )
+
+
+def _dataset(title: str, *observables: datasets.Observable) -> datasets.Dataset:
+    return datasets.Dataset(title=title, observables=list(observables))
+
+
 def test_write_css_file_copies_template(tmp_path: Path) -> None:
     template_css = tmp_path / "template.css"
     output_css = tmp_path / "index.css"
@@ -38,27 +57,7 @@ def test_main_writes_default_files_in_current_directory(
     monkeypatch.setattr(
         datasets,
         "load_datasets",
-        lambda: [
-            datasets.Dataset(
-                title="Demo",
-                observables=[
-                    datasets.Observable(
-                        name="First",
-                        fields="field",
-                        source="Shared source",
-                        value=1.0,
-                        unit="m",
-                    ),
-                    datasets.Observable(
-                        name="Second",
-                        fields="field",
-                        source="Shared source",
-                        value=10.0,
-                        unit="m",
-                    ),
-                ],
-            )
-        ],
+        lambda: [_dataset("Demo", _observable("First"), _observable("Second"))],
     )
 
     render_site.main([])
@@ -111,36 +110,14 @@ def test_scientific_parts_uses_logscale_format() -> None:
 
 def test_source_references_deduplicate_by_text() -> None:
     loaded_datasets = [
-        datasets.Dataset(
-            title="A",
-            observables=[
-                datasets.Observable(
-                    name="one",
-                    fields="f",
-                    source="Shared source",
-                    value=1.0,
-                    unit="m",
-                ),
-                datasets.Observable(
-                    name="two",
-                    fields="f",
-                    source="Shared source",
-                    value=2.0,
-                    unit="m",
-                ),
-            ],
+        _dataset(
+            "A",
+            _observable("one"),
+            _observable("two", value=2.0),
         ),
-        datasets.Dataset(
-            title="B",
-            observables=[
-                datasets.Observable(
-                    name="three",
-                    fields="f",
-                    source="Other source",
-                    value=3.0,
-                    unit="m",
-                ),
-            ],
+        _dataset(
+            "B",
+            _observable("three", source="Other source", value=3.0),
         ),
     ]
 

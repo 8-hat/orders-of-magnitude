@@ -54,21 +54,23 @@ def _read_text(path: Path, label: str) -> str:
 
 
 def _ensure_mapping(item: object, message: str) -> dict[str, object]:
-    """Validate that ``item`` is a mapping and return it."""
+    """Validate that ``item`` is a YAML mapping and return it."""
     if isinstance(item, dict):
         return item
     raise TypeError(message)
 
 
-def _ensure_string(value: object, message: str) -> str:
+def _ensure_string(value: object, label: str) -> str:
     """Validate that ``value`` is a string and return it."""
     if isinstance(value, str):
         return value
+    message = f"{label} must be a string."
     raise TypeError(message)
 
 
-def _parse_number(value: object, message: str) -> float:
+def _parse_number(value: object, label: str) -> float:
     """Convert a numeric-like value to ``float`` while rejecting booleans."""
+    message = f"{label} must be a number."
     if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         raise TypeError(message)
     try:
@@ -77,33 +79,42 @@ def _parse_number(value: object, message: str) -> float:
         raise TypeError(message) from exc
 
 
-def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
-    """Parse one observable mapping, validate required fields, and normalize units."""
-    observable = _ensure_mapping(item, f"Observable {index} must be a mapping.")
+def _required_observable_fields(
+    observable: dict[str, object], index: int
+) -> dict[str, object]:
+    """Return required observable values or raise a field-specific error."""
+    fields = {}
     for field in OBSERVABLE_REQUIRED_FIELDS:
         if field not in observable:
             message = f"Observable {index} missing '{field}'."
             raise ValueError(message)
+        fields[field] = observable[field]
+    return fields
 
-    name = _ensure_string(
-        observable["name"], f"Observable {index} field 'name' must be a string."
-    )
-    unit = _ensure_string(
-        observable["unit"], f"Observable {index} field 'unit' must be a string."
-    )
-    fields = _ensure_string(
-        observable["fields"], f"Observable {index} field 'fields' must be a string."
-    )
-    source = _ensure_string(
-        observable["source"], f"Observable {index} field 'source' must be a string."
-    )
-    value = _parse_number(
-        observable["value"], f"Observable {index} field 'value' must be a number."
-    )
+
+def _field_label(index: int, field: str) -> str:
+    """Return the human-readable label used in validation errors."""
+    return f"Observable {index} field '{field}'"
+
+
+def _parse_observable(item: object, index: int, target_unit: str) -> Observable:
+    """Parse one observable mapping, validate required fields, and normalize units."""
+    observable = _ensure_mapping(item, f"Observable {index} must be a mapping.")
+    fields = _required_observable_fields(observable, index)
+
+    name = _ensure_string(fields["name"], _field_label(index, "name"))
+    unit = _ensure_string(fields["unit"], _field_label(index, "unit"))
+    observable_fields = _ensure_string(fields["fields"], _field_label(index, "fields"))
+    source = _ensure_string(fields["source"], _field_label(index, "source"))
+    value = _parse_number(fields["value"], _field_label(index, "value"))
 
     value = _convert_to_target_unit(value, unit, target_unit, index)
     return Observable(
-        name=name, fields=fields, source=source, value=value, unit=target_unit
+        name=name,
+        fields=observable_fields,
+        source=source,
+        value=value,
+        unit=target_unit,
     )
 
 
@@ -129,27 +140,26 @@ def _convert_to_target_unit(
     return float(magnitude)
 
 
-def _sort_observables(observables: list[Observable]) -> list[Observable]:
-    """Return observables sorted from smallest to largest normalized value."""
-    return sorted(observables, key=lambda observable: observable.value)
-
-
 def load_dataset(path: Path, target_unit: str) -> Dataset:
     """Load and validate a dataset YAML file, converting all values to one unit."""
     raw = _ensure_mapping(
         yaml.safe_load(_read_text(path, "YAML file")),
         "Top-level YAML must be a mapping with an 'observables' key.",
     )
-    title = _ensure_string(raw.get("title"), "YAML 'title' must be a string.")
+    title = _ensure_string(raw.get("title"), "YAML 'title'")
     items = raw.get("observables")
     if not isinstance(items, list):
         message = "YAML 'observables' must be a list."
         raise TypeError(message)
 
-    observables = [
-        _parse_observable(item, index, target_unit) for index, item in enumerate(items)
-    ]
-    return Dataset(title=title, observables=_sort_observables(observables))
+    observables = sorted(
+        (
+            _parse_observable(item, index, target_unit)
+            for index, item in enumerate(items)
+        ),
+        key=lambda observable: observable.value,
+    )
+    return Dataset(title=title, observables=observables)
 
 
 def load_datasets() -> list[Dataset]:
