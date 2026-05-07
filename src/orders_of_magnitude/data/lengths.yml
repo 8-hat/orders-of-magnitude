@@ -42,9 +42,59 @@ observables:
     fields: astronomy
     source:
       S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)
-  - name: Equatorial radius of Mars
+  - name: Mars equatorial radius
     value: 3396.19
     uncertainty: 0.1
+    unit: km
+    fields: astronomy
+    source: >-
+      Archinal, B.A., Acton, C.H., A'Hearn, M.F. et al. Report of the IAU
+      Working Group on Cartographic Coordinates and Rotational Elements: 2015.
+      Celest Mech Dyn Astr 130, 22 (2018).
+      https://doi.org/10.1007/s10569-017-9805-5
+  - name: Venus equatorial radius
+    value: 6051.8
+    uncertainty: 1.0
+    unit: km
+    fields: astronomy
+    source: >-
+      Archinal, B.A., Acton, C.H., A'Hearn, M.F. et al. Report of the IAU
+      Working Group on Cartographic Coordinates and Rotational Elements: 2015.
+      Celest Mech Dyn Astr 130, 22 (2018).
+      https://doi.org/10.1007/s10569-017-9805-5
+  - name: Jupiter equatorial radius
+    value: 71492.0
+    uncertainty: 4.0
+    unit: km
+    fields: astronomy
+    source: >-
+      Archinal, B.A., Acton, C.H., A'Hearn, M.F. et al. Report of the IAU
+      Working Group on Cartographic Coordinates and Rotational Elements: 2015.
+      Celest Mech Dyn Astr 130, 22 (2018).
+      https://doi.org/10.1007/s10569-017-9805-5
+  - name: Saturn equatorial radius
+    value: 60268.0
+    uncertainty: 4.0
+    unit: km
+    fields: astronomy
+    source: >-
+      Archinal, B.A., Acton, C.H., A'Hearn, M.F. et al. Report of the IAU
+      Working Group on Cartographic Coordinates and Rotational Elements: 2015.
+      Celest Mech Dyn Astr 130, 22 (2018).
+      https://doi.org/10.1007/s10569-017-9805-5
+  - name: Uranus equatorial radius
+    value: 25559.0
+    uncertainty: 4.0
+    unit: km
+    fields: astronomy
+    source: >-
+      Archinal, B.A., Acton, C.H., A'Hearn, M.F. et al. Report of the IAU
+      Working Group on Cartographic Coordinates and Rotational Elements: 2015.
+      Celest Mech Dyn Astr 130, 22 (2018).
+      https://doi.org/10.1007/s10569-017-9805-5
+  - name: Neptune equatorial radius
+    value: 24764.0
+    uncertainty: 15.0
     unit: km
     fields: astronomy
     source: >-
