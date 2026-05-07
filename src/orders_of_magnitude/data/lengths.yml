@@ -42,3 +42,13 @@ observables:
     fields: astronomy
     source:
       S. Navas et al. (Particle Data Group), Phys. Rev. D 110, 030001 (2024)
+  - name: Equatorial radius of Mars
+    value: 3396.19
+    uncertainty: 0.1
+    unit: km
+    fields: astronomy
+    source: >-
+      Archinal, B.A., Acton, C.H., A'Hearn, M.F. et al. Report of the IAU
+      Working Group on Cartographic Coordinates and Rotational Elements: 2015.
+      Celest Mech Dyn Astr 130, 22 (2018).
+      https://doi.org/10.1007/s10569-017-9805-5
