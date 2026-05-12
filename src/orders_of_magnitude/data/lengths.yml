@@ -102,3 +102,11 @@ observables:
       Working Group on Cartographic Coordinates and Rotational Elements: 2015.
       Celest Mech Dyn Astr 130, 22 (2018).
       https://doi.org/10.1007/s10569-017-9805-5
+  - name: Moon semi-major axis
+    value: 383598
+    unit: km
+    fields: astronomy
+    source: >-
+      M. Farhat, P. Auclair-Desrotour, G. Boué, and J. Laskar, The resonant
+      tidal evolution of the Earth-Moon distance. A&A 665, L1 (2022).
+      (https://doi.org/10.1051/0004-6361/202243445
