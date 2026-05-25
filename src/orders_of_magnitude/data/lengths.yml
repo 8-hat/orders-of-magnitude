@@ -109,3 +109,12 @@ observables:
     source: >-
       Riofrio, L. Calculation of lunar orbit anomaly. planet. sci. 1, 1 (2012).
       https://doi.org/10.1186/2191-2521-1-1
+  - name: ESO 383-G 076 diameter
+    value: 277.59
+    unit: kpc
+    fields: astronomy
+    source: >-
+      The NASA/IPAC Extragalactic Database (NED) cites Lauberts, A. and
+      Valentijn, E.A. The surface photometry catalogue of the ESO-Uppsala
+      galaxies. Garching: European Southern Observatory, 1989.
+      https://ned.ipac.caltech.edu/
