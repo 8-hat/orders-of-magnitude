@@ -118,3 +118,11 @@ observables:
       Valentijn, E.A. The surface photometry catalogue of the ESO-Uppsala
       galaxies. Garching: European Southern Observatory, 1989.
       https://ned.ipac.caltech.edu/
+  - name: Hercules A galaxy diameter
+    value: 140.86
+    unit: kpc
+    fields: astronomy
+    source: >-
+      The NASA/IPAC Extragalactic Database (NED) cites Two Micron All Sky Survey
+      Team. 2MASS Extended objects. Final release, 2003.
+      https://ned.ipac.caltech.edu/
